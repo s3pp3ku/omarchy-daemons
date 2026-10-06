@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Omarchy Lemmings</title>
+<meta name="description" content="Think ahead. Save them all. A Lemmings tribute set in the Omarchy world.">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="hud">
+    <div class="brand"><span class="om">OM<i class="tri"></i>RCHY</span><span class="sep">//</span>LEMMINGS</div>
+    <div class="lvl" id="hud-level"></div>
+    <div class="stats" id="hud-stats"></div>
+  </header>
+
+  <main id="stage">
+    <canvas id="screen"></canvas>
+    <div id="hover-tag"></div>
+    <div id="toast"></div>
+    <div id="overlay"></div>
+    <aside id="debug" hidden></aside>
+  </main>
+
+  <footer id="dock">
+    <div class="rate">
+      <button id="rate-dn" title="Slower release (−)">−</button>
+      <div><b id="rate-val">50</b><small>RELEASE</small></div>
+      <button id="rate-up" title="Faster release (+)">+</button>
+    </div>
+    <div id="skills"></div>
+    <div class="ctrl">
+      <button id="btn-pause" title="Pause (Space)">❚❚</button>
+      <button id="btn-speed" title="Speed (F)">1×</button>
+      <button id="btn-restart" title="Restart (R)">↺</button>
+      <button id="btn-nuke" title="Nuke — press twice (N)">☢</button>
+    </div>
+    <canvas id="minimap" width="240" height="60" title="Minimap — click to jump"></canvas>
+  </footer>
+
+  <script src="js/core/terrain.js"></script>
+  <script src="js/core/sim.js"></script>
+  <script src="js/core/levels.js"></script>
+  <script src="levels/00-sandbox.js"></script>
+  <script src="levels/02-network-nodes.js"></script>
+  <script src="levels/solutions.js"></script>
+  <script src="js/gfx/palette.js"></script>
+  <script src="js/gfx/sprites.js"></script>
+  <script src="js/gfx/terrain-render.js"></script>
+  <script src="js/gfx/scenery.js"></script>
+  <script src="js/gfx/renderer.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

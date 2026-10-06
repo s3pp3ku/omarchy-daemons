@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.s3pp3ku.omarchy-lemmings",
   "name": "Omarchy Lemmings",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "s3pp3ku",
   "license": "MIT",
   "description": "A small, procedural Lemmings tribute launched from the Omarchy bar.",

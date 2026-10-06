@@ -1,108 +1,95 @@
 # Omarchy Lemmings
 
-> **A novice-made, unfinished game/plugin experiment. Help is very welcome.**
+> **Think ahead. Save them all.** A Lemmings tribute set in the Omarchy world.
+> An unfinished, novice-led project. One fully designed sample level so far; help is welcome.
 
-Omarchy Lemmings is a small browser game inspired by the classic Lemmings
-games, rebuilt as a procedural Omarchy/terminal-themed world. The lemmings
-are shell users, the tools are commands, and the levels are little rescue
-puzzles.
-
-This began as a first-time game-development experiment. I am not a game
-developer, artist, audio designer, or Quickshell plugin author. The engine,
-renderer, generated levels, UI, audio, and plugin wrapper were developed by
-iterating from a playable prototype and asking for help when something was
-unclear. Expect rough edges, unusual ideas, and places where a more
-experienced contributor could improve the design.
-
-## What is included
-
-- Eight procedural campaign levels.
-- Slow, readable lemming movement with mouse-edge camera scrolling.
-- Classic-style tools: climb, float, bomb, build, block, bash, dig, and rm.
-- Procedural terrain, planks, Omarchy-logo exits, lemming characters, and
-  WebAudio music/effects. No downloaded game assets are required.
-- Keyboard navigation, help, save/resume, and a bar widget launcher.
-
-## Screenshots
-
-![Intro screen](screenshots/intro.png)
+Omarchy Lemmings is a small browser puzzle game in the spirit of the classic
+Lemmings games. Cute green-haired lemmings tumble out of a hatch into stark
+Omarchy architecture: near-black caverns, riveted metal with neon edges,
+circuit-panel nodes and a glowing triangle gate. Your job is to hand out a
+small budget of tools so enough of them make it home.
 
 ![Gameplay](screenshots/gameplay.png)
 
-## Install as an Omarchy plugin
+## What's here (v0.2)
 
-Once this repository is public and approved, install it with:
+- **A rebuilt engine** with pixel-level terrain: digging, bashing, mining and
+  building remove or add individual pixels, as in the originals.
+- **Deterministic physics and replays.** Every recorded solution is re-verified
+  headlessly with `node tools/verify.js`.
+- **Six classic skills:** Blocker, Builder, Basher, Miner, Digger, Bomber.
+  Materials: dirt, rock, metal, tech, one-way walls, lava and coolant.
+- **LVL 02 · NETWORK NODES:** a sample level with three verified routes
+  (upper bridge network, lower service tunnel, hybrid drop). It needs crowd
+  control, and a random search of 60,000 plans found no shortcut. Its design
+  record is in [`docs/levels/02-network-nodes.md`](docs/levels/02-network-nodes.md).
+- **Pixel art and synth audio made in code.** There are no image or audio files.
+- **Debug and design tools:** material view, state labels, zones and a splat
+  ruler, single-step, in-place level reload, test lemmings, replay copy and
+  playback.
 
-```sh
-omarchy plugin add https://github.com/YOUR-USERNAME/omarchy-lemmings.git --enable
-```
+The other nine campaign slots are planned in
+[`omarchy_lemmings_agent_pack/AGENTS.md`](omarchy_lemmings_agent_pack/AGENTS.md)
+and appear as "not built yet" in level select. The original prototype is kept,
+playable, in [`legacy/`](legacy/).
 
-The plugin adds a small `λ` game button to the Omarchy bar. Click it to open
-the local game as a web app. The plugin does not install packages, use sudo,
-run a service, or contact a remote server at runtime.
-
-## Local development and validation
-
-From the repository root:
-
-```sh
-omarchy plugin validate .
-qmllint -I "$OMARCHY_PATH/shell" Lemmings.qml
-node --check js/engine.js
-node --check js/render.js
-node --check js/audio.js
-```
-
-The game itself can also be opened directly:
+## Play
 
 ```sh
 omarchy-launch-webapp "file://$PWD/index.html"
 ```
 
-## Controls
+or click the `λ` button in the Omarchy bar once the plugin is enabled.
 
-- Click a skill, then a lemming; or click a lemming, then a skill.
-- `1–8`: select a skill.
-- `W`: help.
-- `Space`: pause/resume.
-- `F`: fast-forward after the puzzle is set up.
-- `R`: restart.
-- `Q`: save and quit.
-- `M`: mute.
-- Arrow keys + `Enter`: navigate menus.
+| Key | Action |
+|---|---|
+| `1`–`6` / click | pick a skill, then click a lemming |
+| `Space` | pause (you can still assign while paused) |
+| `F` | speed 1× / 2× / 4× |
+| `+` / `−` | release rate |
+| `R` | restart |
+| `N N` | nuke |
+| arrows · screen edge · right-drag · minimap | scroll |
+| `Z` / `X` | zoom out / in |
+| `M` / `B` | sound / music |
+| `H` | help |
+| `` ` `` | debug tools |
 
-The number shown on a skill is its available uses for that level. `∞` means
-the skill is a permanent trait; `—` means it is not available in that level.
+A Blocker can be given a new job (Builder, Basher, Miner or Digger). That's how
+you release a crowd you're holding back.
 
-## Backstory
+## Install as an Omarchy plugin
 
-This started with a simple question: could a tiny Omarchy-themed game be
-made from plain HTML, CSS, and JavaScript without external assets? The answer
-became a terminal-flavoured Lemmings tribute: users fall out of a hatch,
-commands become abilities, and every level is a small systems problem.
+```sh
+omarchy plugin add https://github.com/YOUR-USERNAME/omarchy-lemmings.git --enable
+```
 
-The project grew through repeated playtesting. The first versions were too
-fast, too blocky, too teal, and often unclear about what the controls meant.
-The current version deliberately favors slow movement, visible feedback,
-limited level-specific tools, procedural art, and a little synthesized music.
+The plugin adds a `λ` button to the bar that opens the local game as a web app.
+It installs no packages, uses no sudo, runs no service and makes no network
+requests.
+
+## Develop
+
+```sh
+node tools/verify.js        # every recorded solution still wins
+node tools/solve-02.js      # scripted LVL 02 solutions (add --write to record them)
+node tools/shortcuts-02.js  # lazy-strategy probes (add --random N for a random search)
+node tools/tolerance-02.js  # how forgiving each key decision is
+```
+
+- [`docs/ENGINE.md`](docs/ENGINE.md): file map, physics constants, skills,
+  replays and tools.
+- [`docs/LEVEL_FORMAT.md`](docs/LEVEL_FORMAT.md): how to write a level and the
+  workflow for proving it.
 
 ## Help wanted
 
-This is explicitly a novice project. Helpful contributions and kind feedback
-are welcome, especially for:
-
-- Level design with more than one reasonable solution.
-- Better lemming silhouettes and animation.
-- More faithful classic-Lemmings interactions.
-- Music composition and sound mixing.
-- Quickshell/plugin packaging and accessibility review.
-- Testing on different Omarchy screen sizes and browsers.
-
-Please explain changes gently and include reproduction steps for bugs.
+Level design, sprite animation, music, Quickshell packaging, accessibility,
+and testing on different screen sizes. Please explain changes gently and
+include reproduction steps for bugs.
 
 ## License and scope
 
-The original code in this repository is released under MIT. This is an
-unofficial tribute and is not affiliated with the owners of the Lemmings
-name or original game. The game uses procedural code-drawn visuals and
-procedural audio rather than copied original assets.
+MIT. This is an unofficial tribute and is not affiliated with the owners of
+the Lemmings name or the original game. All visuals and audio are generated
+procedurally by this code; no original assets are used.
