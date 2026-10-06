@@ -1,0 +1,11 @@
+Read AGENTS.md and LEVEL_DESIGN_TEMPLATE.md completely, then inspect and run the existing game.
+
+The project's biggest problem is level design: previous versions could often be solved by digging through one wall or bridging one pit. Do NOT start by producing ten levels.
+
+Audit the mechanics and level representation. Explain specifically why the current levels lack puzzle depth. Make level data easy to edit and establish fast restart/debug/reload tooling if needed.
+
+Then redesign ONE representative level using LEVEL_DESIGN_TEMPLATE.md. It must have at least three interacting obstacles, limited tools, a meaningful crowd-management problem, and at least two genuinely different valid solutions. Verify both solutions under actual game physics and document them.
+
+Use art/reference/ as visual direction. Keep the lemmings friendly and close to the references; apply Omarchy primarily to terrain, architecture, UI, exits, level-select presentation and backgrounds.
+
+Once the single level is demonstrably non-trivial and fun, STOP and report what you learned before scaling the pattern to the rest of the campaign.
