@@ -72,6 +72,10 @@ var OL = globalThis.OL || (globalThis.OL = {});
     c.neon = k(T.accent); c.neonHot = k(T.accentHot); c.neonSide = k(T.accentDim); c.cyan = k(T.accent2);
     c.pcb = k(mix(T.accent, "#000000", 0.62)); c.pcbDark = k(mix(T.accent, "#000000", 0.8));
     c.pcbLine = k(mix(T.accent, "#000000", 0.5)); c.pcbTrace = k(T.accentHot);
+    c.board = k(mix("#0f4a34", T.bg, 0.3)); c.board2 = k(mix("#14583f", T.bg, 0.3));
+    c.copper = k("#b8763a"); c.copperHi = k("#d99a4e"); c.gold = k("#f0c35a"); c.viaHole = k("#0a1410");
+    c.chip = k("#16181c"); c.pin = k("#9aa3ad");
+    c.fibre = k("#a8946a"); c.fibreHi = k("#cdbb88"); c.fibreLo = k("#6e5f40");
     c.owArrow = k(T.special); c.owArrowHi = k(mix(T.special, "#ffffff", 0.4));
     c.owBase = k(mix(T.special, "#000000", 0.78)); c.owBase2 = k(mix(T.special, "#000000", 0.72));
     return c;
@@ -146,9 +150,12 @@ var OL = globalThis.OL || (globalThis.OL = {});
               /* grass blades growing from dirt tops into the air */
               const b1 = at(x, y + 1), b2 = at(x, y + 2);
               const hx = hash(x, 7);
-              if (b1 === M.DIRT && hx % 3 === 0) c = C.grass[1 + (hx % 2)];
+              const u1 = at(x, y - 1), u2 = at(x, y - 2);
+              /* visual-only underside for builder steps (not solid) so they read bolder */
+              if (u1 === M.BRICK) c = (x & 3) === 0 ? C.gold : C.pcb;
+              else if (u2 === M.BRICK && u1 === M.AIR) c = C.pcbDark;
+              else if (b1 === M.DIRT && hx % 3 === 0) c = C.grass[1 + (hx % 2)];
               else if (b1 === M.AIR && b2 === M.DIRT && hx % 7 === 0) c = C.grass[2];
-              else if (b1 === M.ROCK && hx % 9 === 0) c = C.moss;
             } else {
               this.paintFluid(F, k, x, y, mat, at);
             }
@@ -187,19 +194,31 @@ var OL = globalThis.OL || (globalThis.OL = {});
               break;
             }
             case M.ROCK: {
-              const row = Math.floor(y / 9), off = (row & 1) * 9;
-              const bx = (x + off) % 18, by = y % 9;
-              const col = Math.floor((x + off) / 18);
-              if (bx === 0 || by === 0) c = C.rockMortar;
-              else {
-                c = C.rock[hash(col, row) & 3];
-                if (by === 1 || bx === 1) c = C.rockHi;
-                else if (by === 8 || bx === 17) c = C.rockLo;
-                else if (h > 250) c = C.rockLo;
+              /* breakable circuit board: matte board, copper traces, vias,
+                 the odd chip, and a tan fibreglass rim wherever it's cut */
+              const u = x & 7, v = y & 7, hc = hash(x >> 3, y >> 3);
+              c = (clump(x, y, 4) + h * 0.5) > 190 ? C.board2 : C.board;
+              if ((hc & 1) && v === 3) c = C.copper;
+              if ((hc & 2) && u === 3) c = C.copper;
+              if ((hc & 1) && (hc & 2) && u === 3 && v === 3) c = C.copperHi;
+              if ((hc & 28) === 28) {                      // via: gold ring, dark hole
+                const du = Math.abs(u - 3), dv = Math.abs(v - 3);
+                if (du <= 1 && dv <= 1) c = du + dv === 0 ? C.viaHole : C.gold;
               }
-              if (up === M.AIR) c = (hash(x, 11) % 4 === 0) ? C.moss : C.rockHi;
+              // chips on a coarser grid
+              const kx = Math.floor(x / 36), ky = Math.floor(y / 26);
+              if (hash(kx, ky + 77) % 4 === 0) {
+                const cxl = x - kx * 36, cyl = y - ky * 26;
+                if (cxl >= 8 && cxl < 26 && cyl >= 9 && cyl < 17) {
+                  c = C.chip;
+                  if (cyl === 9 || cyl === 16) c = (cxl & 1) ? C.pin : C.chip;
+                  else if (cxl === 9 && cyl === 11) c = C.pin;
+                }
+              }
+              if (up === M.AIR) c = C.fibreHi;
               else if (oUp) c = up === M.LAVA ? C.scorch : C.siltDark;
-              else if (oL || oR || oDn) c = C.rockLo;
+              else if (oL || oR) c = C.fibre;
+              else if (oDn) c = C.fibreLo;
               break;
             }
             case M.METAL: {
@@ -228,11 +247,12 @@ var OL = globalThis.OL || (globalThis.OL = {});
             }
             case M.BRICK: {
               /* builder steps are printed-circuit planks: bright trace on top, gold pads */
-              c = C.pcb;
-              if (oUp) { c = C.pcbTrace; e = C.pcbTrace; }
+              let dd = 0;
+              for (let d = 1; d <= 3; d++) { if (at(x, y - d) !== M.BRICK) { dd = d; break; } }
+              if (oUp) { c = C.pcbTrace; e = C.pcbTrace; }                    // glowing top trace
+              else if (dd === 2) c = (x & 3) === 0 ? C.gold : C.copperHi;      // solder line with pads
               else if (oDn) c = C.pcbDark;
-              else if (hash(x, 5) % 7 === 0) c = C.pcbPad;
-              else if (x % 4 === 0) c = C.pcbLine;
+              else c = (x & 3) === 2 ? C.pcbLine : C.pcb;
               break;
             }
             case M.OW_L: case M.OW_R: {
@@ -300,7 +320,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     static minimapColor(mat) {
       switch (mat) {
         case M.DIRT: return [122, 80, 54];
-        case M.ROCK: return [84, 90, 112];
+        case M.ROCK: return [24, 92, 64];
         case M.METAL: return [70, 80, 92];
         case M.TECH: return [30, 120, 90];
         case M.BRICK: return [125, 255, 212];

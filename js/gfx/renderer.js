@@ -151,7 +151,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     debris(mat) {
       const D = {
         [M.DIRT]: ["#7b5036", "#a07650", "#5b3a28", "#8a5c3d"],
-        [M.ROCK]: ["#575d74", "#6e7592", "#3f4356", "#2c2f3d"],
+        [M.ROCK]: ["#0f4a34", "#14583f", "#b8763a", "#cdbb88", "#f0c35a"],
         [M.BRICK]: ["#0f5a3c", "#7dffd4", "#f0c35a"],
         [M.OW_L]: ["#352950", "#9b6bff", "#c9a8ff"],
         [M.OW_R]: ["#352950", "#9b6bff", "#c9a8ff"],

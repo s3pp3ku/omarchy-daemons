@@ -34,7 +34,7 @@ The three `js/core` files run unchanged in node (`tools/load.js`). That lets `to
 | id | name | solid | breakable | notes |
 |---|---|---|---|---|
 | dirt | grassy soil | ✓ | ✓ | grass is drawn on exposed tops |
-| rock | stone-brick ruins | ✓ | ✓ | same rules as dirt, heavier look |
+| rock | circuit board (copper traces, vias, chips; tan fibreglass where cut) | ✓ | ✓ | same rules as dirt |
 | metal | system plating | ✓ | ✗ | neon top edges |
 | tech | Omarchy architecture | ✓ | ✗ | circuit panels |
 | brick | builder steps (drawn as circuit-board planks) | ✓ | ✓ | |
