@@ -10,6 +10,8 @@ OL.registerLevel({
   brief: "One or two sentences shown before play.",
   size: [1280, 320],          // world pixels; 320 tall = 3x zoom on a 1080p screen
   seed: 7,                    // backdrop variation
+  theme: "omarchy",           // palette: omarchy tokyo-night catppuccin gruvbox everforest nord kanagawa rose-pine matte-black
+  lab: false,                 // true = listed under the campaign as a mechanics playground
   lemmings: 25, save: 20,     // population and quota
   time: 240,                  // seconds
   rate: 65,                   // minimum release rate (player can only raise it)
@@ -17,6 +19,15 @@ OL.registerLevel({
   entrances: [{ x: 64, y: 86 }],          // spawn points (bottom-centre of the hatch); optional dir: -1
   exits: [{ x: 1180, y: 237 }],           // the exit's floor point (lemming foot y)
   camera: { x: 0 },                       // optional start camera
+
+  objects: [                              // moving mechanisms (deterministic, tick-driven)
+    // OOM killer: press over floor point (x, y); hangs from `top`. Kills anyone under it while down.
+    { type: "crusher", x: 160, y: 95, top: 40, w: 18, period: 96, down: 14, rise: 22, phase: 0 },
+    // sliding window: solid, indestructible platform. Slides `range` px along `axis`
+    // (x = right, y = up), 1 px every `step` ticks, pausing `dwell` [start, end] ticks.
+    // Carries riders; scoops anyone it moves onto.
+    { type: "window", x: 420, y: 150, w: 80, h: 3, axis: "x", range: 72, step: 2, dwell: [150, 70] },
+  ],
 
   decor: [                                // scenery only, never collides
     { m: "tech", rect: [1064, 176, 186, 62] },        // faint back-wall

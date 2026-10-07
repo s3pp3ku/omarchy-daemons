@@ -8,16 +8,16 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
   /* The ten-level plan from AGENTS.md. Only built levels are playable. */
   const CAMPAIGN = [
-    { slot: 1, id: "boot-sequence", title: "BOOT SEQUENCE" },
-    { slot: 2, id: "network-nodes", title: "NETWORK NODES" },
-    { slot: 3, id: "dependencies", title: "DEPENDENCIES" },
-    { slot: 4, id: "package-cache", title: "PACKAGE CACHE" },
-    { slot: 5, id: "firewall", title: "FIREWALL" },
-    { slot: 6, id: "vertical-world", title: "VERTICAL WORLD" },
-    { slot: 7, id: "the-arch", title: "THE ARCH" },
-    { slot: 8, id: "aur-valley", title: "AUR VALLEY" },
-    { slot: 9, id: "ice-caverns", title: "ICE CAVERNS" },
-    { slot: 10, id: "the-omarch", title: "THE OMARCH" },
+    { slot: 1, id: "boot-sequence", title: "BOOT SEQUENCE", theme: "everforest" },
+    { slot: 2, id: "network-nodes", title: "NETWORK NODES", theme: "omarchy" },
+    { slot: 3, id: "dependencies", title: "DEPENDENCIES", theme: "tokyo-night" },
+    { slot: 4, id: "package-cache", title: "PACKAGE CACHE", theme: "gruvbox" },
+    { slot: 5, id: "firewall", title: "FIREWALL", theme: "kanagawa" },
+    { slot: 6, id: "vertical-world", title: "VERTICAL WORLD", theme: "catppuccin" },
+    { slot: 7, id: "the-arch", title: "THE ARCH", theme: "rose-pine" },
+    { slot: 8, id: "aur-valley", title: "AUR VALLEY", theme: "matte-black" },
+    { slot: 9, id: "ice-caverns", title: "ICE CAVERNS", theme: "nord" },
+    { slot: 10, id: "the-omarch", title: "THE OMARCH", theme: "omarchy" },
   ];
   const SPEEDS = [1, 2, 4];
   const params = new URLSearchParams(location.search);
@@ -48,6 +48,51 @@ var OL = globalThis.OL || (globalThis.OL = {});
     clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("on"), 1800);
   }
 
+  /* ------------------------------------------------------------- themes */
+  const themePref = () => store.get("ol.theme", "auto");
+  function themeFor(lv) {
+    const o = themePref();
+    return o !== "auto" && OL.THEMES[o] ? o : (lv && lv.theme) || (CAMPAIGN.find((c) => lv && c.id === lv.id) || {}).theme || "omarchy";
+  }
+  /* every level switch goes through here so the palette follows the level */
+  function attach(lv, sim) {
+    OL.setTheme(themeFor(lv));
+    G.r.attach(sim);
+    renderWorkspaces();
+    updateHud(true);
+  }
+
+  /* ------------------------------------------------------------ journal
+     A tiny journalctl in the corner: what just happened, and why. */
+  const userName = (id) => `user${pad(id)}`;
+  const DEATH = {
+    splat: (e) => `segfault — fell ${e.fall}px`,
+    drown: () => "drowned in coolant",
+    burn: () => "kernel panic (lava)",
+    void: () => "fell off the edge of the filesystem",
+    oom: () => "killed by the OOM killer",
+  };
+  G.journalOn = store.get("ol.journal", true);
+  function journal(kind, text) {
+    if (!G.journalOn) return;
+    const box = $("#journal");
+    const tag = { ok: "  OK  ", fail: "FAILED", info: " INFO ", warn: " WARN " }[kind];
+    const el = document.createElement("div");
+    el.className = "jl " + kind;
+    el.innerHTML = `<span class="jt">[<b>${tag}</b>]</span> ${text}`;
+    box.appendChild(el);
+    while (box.children.length > 7) box.removeChild(box.firstChild);
+    setTimeout(() => el.classList.add("old"), 6000);
+    setTimeout(() => el.remove(), 8000);
+  }
+  function journalEvents(events) {
+    for (const e of events) {
+      if (e.type === "exit") journal("ok", `${userName(e.id)} reached /gate`);
+      else if (e.type === "die") journal("fail", `${userName(e.id)} ${(DEATH[e.cause] || (() => e.cause))(e)}`);
+      else if (e.type === "boom") journal("fail", `${userName(e.id)} ${e.nuked ? "received SIGKILL" : "self-destructed"}`);
+    }
+  }
+
   /* -------------------------------------------------------------- level */
   function startLevel(id, opts) {
     opts = opts || {};
@@ -55,7 +100,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
     if (!lv) { toast("level not found: " + id); return; }
     G.level = lv;
     G.sim = new OL.Sim(lv, { infinite: G.infinite });
-    G.r.attach(G.sim);
+    attach(lv, G.sim);
+    $("#journal").innerHTML = "";
     G.paused = false; G.speedI = 0; G.acc = 0; G.nukeArmed = 0; G.resultTimer = 0;
     G.replay = opts.replay ? { actions: opts.replay.slice().sort((a, b) => a.t - b.t), i: 0, name: opts.replayName } : null;
     const avail = SKILLS.filter((s) => G.sim.skills[s.id] > 0 || G.infinite);
@@ -65,6 +111,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     hideOverlay();
     updateHud(true);
     if (G.replay) toast(`▶ watching ${G.replay.name || "replay"} — input disabled`);
+    journal("ok", `Started ${lv.id}.service — ${lv.lemmings} users queued, ${lv.save} must reach /gate`);
   }
 
   function restart() { if (G.level) startLevel(G.level.id); }
@@ -117,6 +164,10 @@ var OL = globalThis.OL || (globalThis.OL = {});
       else if (map[e.type]) OL.Audio.play(map[e.type]);
     }
     if (sim.tick === C.OPEN_DELAY - 16) OL.Audio.play("door");
+    if (sim.timeLeft === 30 * C.TPS) journal("warn", "30 seconds left on the clock");
+    if (sim.status !== "play") journal(sim.status === "won" ? "ok" : "fail", `${G.level.id}.service ${sim.status === "won" ? "finished" : "failed"}: ${sim.saved}/${sim.total} home`);
+    for (const e of sim.events) if (e.type === "crush") OL.Audio.play("boom");
+    journalEvents(sim.events);
     G.r.onEvents(sim.events);
   }
 
@@ -168,8 +219,12 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
   function assignHover() {
     if (!G.hover || G.replay) return;
-    if (G.sim.assign(G.hover.id, G.sel)) { OL.Audio.play("assign"); refreshCounts(); }
-    else OL.Audio.play("deny");
+    const was = G.hover.state;
+    if (G.sim.assign(G.hover.id, G.sel)) {
+      OL.Audio.play("assign"); refreshCounts();
+      G.r.onEvents(G.sim.events); G.sim.events.length = 0;
+      journal("info", `${userName(G.hover.id)} → ${G.sel}${was === ST.BLOCK ? " (released the crowd)" : ""}`);
+    } else OL.Audio.play("deny");
   }
 
   function selectSkill(id) {
@@ -254,6 +309,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       case "z": G.r.setZoom(G.r.zoom - 1); break;
       case "x": G.r.setZoom(G.r.zoom + 1); break;
       case "h": case "?": showHelp(true); break;
+      case "l": G.journalOn = !G.journalOn; store.set("ol.journal", G.journalOn); $("#journal").innerHTML = ""; toast(G.journalOn ? "journal on" : "journal off"); break;
       case "Escape": showPauseMenu(); break;
       case "`": case "~": toggleDebug(); break;
       case ".": if (G.paused && G.sim.status === "play") tick(); break;
@@ -290,7 +346,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     if (!G.sim || G.sim.nuked || G.replay) return;
     const now = performance.now();
     if (now - G.nukeArmed < 1500) {
-      G.sim.nuke(); OL.Audio.play("nuke");
+      G.sim.nuke(); OL.Audio.play("nuke"); journal("warn", "SIGKILL sent to every user");
       $("#btn-nuke").classList.remove("armed");
     } else {
       G.nukeArmed = now; toast("press nuke again to blow everyone up");
@@ -335,20 +391,32 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
   /* ---------------------------------------------------------------- hud */
   let hudN = 0;
+  /* Waybar-style: workspaces (campaign slots) left, level + clock centre,
+     modules right. */
+  function renderWorkspaces() {
+    const pr = progress();
+    $("#wb-ws").innerHTML = CAMPAIGN.map((c) => {
+      const built = !!OL.getLevel(c.id), cur = G.level && G.level.id === c.id, done = pr[c.id] && pr[c.id].done;
+      return `<span class="ws ${cur ? "active" : ""} ${done ? "done" : ""} ${built ? "" : "empty"}" title="${pad(c.slot)} ${c.title}">${c.slot}</span>`;
+    }).join("") + (G.level && G.level.lab ? `<span class="ws active lab" title="lab">λ</span>` : "");
+  }
   function updateHud(force) {
     if (!force && (hudN++ % 5)) return;
     const sim = G.sim, lv = G.level;
     if (!sim) return;
-    $("#hud-level").innerHTML = `<b>LVL ${pad(lv.slot)}</b>${lv.title}`;
+    const tl = sim.timeLeft;
+    const playing = G.screen === "play";
+    $("#hud-level").innerHTML = `<span class="lvl-id">${lv.lab ? "LAB" : "LVL " + pad(lv.slot)}</span>${lv.title}` +
+      (playing ? `<span class="clock ${tl < 30 * C.TPS ? "warn" : ""}">${fmtTime(tl)}</span>` : "");
+    if (!playing) { $("#hud-stats").innerHTML = `<span class="mod theme">◐ ${OL.T.label}</span>`; return; }
     const left = sim.total - sim.spawned;
-    const homeCls = sim.saved >= sim.need ? "good" : "";
-    const tl = sim.timeLeft, tCls = tl < 30 * C.TPS ? "warn" : "";
     $("#hud-stats").innerHTML =
-      `<div><span>OUT</span><b>${sim.alive}</b></div>` +
-      `<div><span>WAITING</span><b>${left}</b></div>` +
-      `<div class="${homeCls}"><span>HOME</span><b>${sim.saved}/${sim.need}</b></div>` +
-      `<div><span>LOST</span><b>${sim.dead}</b></div>` +
-      `<div class="${tCls}"><span>TIME</span><b>${fmtTime(tl)}</b></div>`;
+      `<span class="mod"><i>out</i>${sim.alive}</span>` +
+      `<span class="mod"><i>wait</i>${left}</span>` +
+      `<span class="mod ${sim.saved >= sim.need ? "good" : ""}"><i>home</i>${sim.saved}/${sim.need}</span>` +
+      `<span class="mod ${sim.dead ? "bad" : ""}"><i>lost</i>${sim.dead}</span>` +
+      `<span class="mod"><i>spd</i>${SPEEDS[G.speedI]}×${G.paused ? " ❚❚" : ""}</span>` +
+      `<span class="mod theme">◐ ${OL.T.label}</span>`;
     refreshCounts();
     $("#rate-val").textContent = sim.rate;
   }
@@ -378,6 +446,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     items.forEach((el, i) => (el._act = list[i]));
   }
   function menuKey(e, k) {
+    if (G.launcherInput && document.activeElement === G.launcherInput) return;   // the launcher handles its own keys
     if (k === "ArrowDown" || k === "j" || k === "Tab") { e.preventDefault(); focusMenu(G.menuI + 1); }
     else if (k === "ArrowUp" || k === "k") { e.preventDefault(); focusMenu(G.menuI - 1); }
     else if (k === "Enter" || k === " ") { e.preventDefault(); const el = G.menuItems && G.menuItems[G.menuI]; if (el && el._act) el._act(); }
@@ -397,11 +466,13 @@ var OL = globalThis.OL || (globalThis.OL = {});
         <div class="menu">
           <div class="item">PLAY</div>
           <div class="item">LEVELS</div>
+          <div class="item">THEMES</div>
           <div class="item">HOW TO PLAY</div>
         </div>
         <div class="hint"><kbd>↑↓</kbd> choose · <kbd>enter</kbd> select · <kbd>m</kbd> sound</div>
       </div>`, "title-card");
-    actions([() => showBrief(firstPlayable()), showSelect, () => showHelp(false)]);
+    actions([() => showBrief(firstPlayable()), showSelect, showThemes, () => showHelp(false)]);
+    updateHud(true);
   }
 
   function firstPlayable() {
@@ -410,21 +481,82 @@ var OL = globalThis.OL || (globalThis.OL = {});
     return (built.find((c) => !(pr[c.id] && pr[c.id].done)) || built[0]).id;
   }
 
+  /* Launcher-style list (think Walker): type to filter, ↑↓, enter. */
+  function fuzzy(q, text) {
+    q = q.toLowerCase(); text = text.toLowerCase();
+    let i = 0;
+    for (const ch of text) if (ch === q[i]) i++;
+    return i === q.length;
+  }
+  function showLauncher(opt) {
+    setScreen(opt.screen || "launcher");
+    G.back = opt.back;
+    const o = $("#overlay");
+    o.innerHTML = `<div class="launcher"><div class="lq"><span class="lp">${opt.prompt || "›"}</span><input id="lq" placeholder="${opt.placeholder}" autocomplete="off" spellcheck="false"><span class="lh">${opt.hint || ""}</span></div><div class="ll" id="ll"></div></div>`;
+    o.classList.add("on");
+    const input = $("#lq"), list = $("#ll");
+    G.launcherInput = input;
+    let shown = [], sel = 0;
+    const draw = () => {
+      const q = input.value.trim();
+      shown = opt.items.filter((it) => !q || fuzzy(q, it.label + " " + (it.sub || "")));
+      sel = Math.min(sel, Math.max(0, shown.length - 1));
+      list.innerHTML = shown.map((it, i) => `<div class="li ${i === sel ? "sel" : ""} ${it.locked ? "locked" : ""}" data-i="${i}">
+        <span class="lic">${it.icon || ""}</span><span class="lt">${it.label}<small>${it.sub || ""}</small></span><span class="lr">${it.right || ""}</span></div>`).join("") ||
+        `<div class="li none">no matches</div>`;
+      list.querySelectorAll(".li[data-i]").forEach((el) => {
+        el.onmouseenter = () => { sel = +el.dataset.i; mark(); };
+        el.onclick = () => go();
+      });
+    };
+    const mark = () => list.querySelectorAll(".li[data-i]").forEach((el) => el.classList.toggle("sel", +el.dataset.i === sel));
+    const go = () => { const it = shown[sel]; if (it && !it.locked && it.act) { G.launcherInput = null; it.act(); } };
+    input.oninput = () => { sel = 0; draw(); };
+    input.onkeydown = (e) => {
+      if (e.key === "ArrowDown" || (e.key === "Tab" && !e.shiftKey)) { e.preventDefault(); do sel = (sel + 1) % Math.max(1, shown.length); while (shown[sel] && shown[sel].locked && shown.some((x) => !x.locked)); mark(); }
+      else if (e.key === "ArrowUp" || (e.key === "Tab" && e.shiftKey)) { e.preventDefault(); do sel = (sel - 1 + shown.length) % Math.max(1, shown.length); while (shown[sel] && shown[sel].locked && shown.some((x) => !x.locked)); mark(); }
+      else if (e.key === "Enter") { e.preventDefault(); go(); }
+      else if (e.key === "Escape") { e.preventDefault(); G.launcherInput = null; if (opt.back) opt.back(); }
+      e.stopPropagation();
+    };
+    sel = Math.max(0, opt.items.findIndex((it) => !it.locked && it.focus));
+    draw();
+    setTimeout(() => input.focus(), 0);
+  }
+
   function showSelect() {
-    setScreen("select");
-    G.back = showTitle;
     const pr = progress();
-    const rows = CAMPAIGN.map((c) => {
+    const items = CAMPAIGN.map((c) => {
       const lv = OL.getLevel(c.id), p = pr[c.id];
-      const st = !lv ? "not built yet" : p && p.done ? `COMPLETE · best ${p.best}/${lv.lemmings}` : p ? `best ${p.best}/${lv.lemmings}` : "ready";
-      return `<div class="item ${lv ? "" : "locked"} ${p && p.done ? "done" : ""}"><span class="id">[${pad(c.slot)}]</span>${c.title}<span class="st">${st}</span></div>`;
-    }).join("");
-    const dbg = G.debug ? `<div class="item"><span class="id">[--]</span>PHYSICS SANDBOX<span class="st">debug</span></div>` : "";
-    showOverlay(`<h1>~/omarchy/lemmings</h1><h2>SELECT LEVEL</h2><div class="menu">${rows}${dbg}</div>
-      <div class="hint"><kbd>↑↓</kbd> choose · <kbd>enter</kbd> open · <kbd>esc</kbd> back</div>`);
-    const acts = CAMPAIGN.filter((c) => OL.getLevel(c.id)).map((c) => () => showBrief(c.id));
-    if (G.debug) acts.push(() => showBrief("sandbox"));
-    actions(acts);
+      return {
+        icon: lv ? (p && p.done ? "✓" : "▸") : "·",
+        label: `${pad(c.slot)}  ${c.title}`,
+        sub: `${(OL.THEMES[(lv && lv.theme) || c.theme] || OL.THEMES.omarchy).label}${lv ? "" : " · not built yet"}`,
+        right: !lv ? "" : p ? `${p.done ? "complete · " : ""}best ${p.best}/${lv.lemmings}` : "ready",
+        locked: !lv, focus: lv && !(p && p.done), act: () => showBrief(c.id),
+      };
+    });
+    for (const lv of OL.LEVELS.filter((l) => l.lab || (l.debug && G.debug))) {
+      const p = pr[lv.id];
+      items.push({ icon: "λ", label: `--  ${lv.title}`, sub: lv.lab ? "lab · new mechanics" : "debug", right: p ? `best ${p.best}/${lv.lemmings}` : "", act: () => showBrief(lv.id) });
+    }
+    showLauncher({ screen: "select", placeholder: "search levels…", prompt: "λ", hint: "↑↓ · enter · esc", items, back: showTitle });
+  }
+
+  function showThemes() {
+    const cur = themePref();
+    const sw = (t) => [t.accent, t.accent2, t.special, t.warn, t.danger].map((c) => `<i style="background:${c}"></i>`).join("");
+    const items = [{ icon: cur === "auto" ? "●" : "○", label: "Per-level themes", sub: "each level brings its own palette (default)", right: "", focus: cur === "auto", act: () => setThemePref("auto") }];
+    for (const t of Object.values(OL.THEMES)) {
+      items.push({ icon: cur === t.id ? "●" : "○", label: t.label, sub: t.id, right: `<span class="sw">${sw(t)}</span>`, focus: cur === t.id, act: () => setThemePref(t.id) });
+    }
+    showLauncher({ screen: "themes", placeholder: "search themes…", prompt: "◐", hint: "↑↓ · enter · esc", items, back: showTitle });
+  }
+  function setThemePref(id) {
+    store.set("ol.theme", id);
+    if (G.level) attach(G.level, G.sim);
+    toast(id === "auto" ? "per-level themes" : `theme: ${OL.THEMES[id].label}`);
+    showThemes();
   }
 
   function skillChips(lv) {
@@ -439,10 +571,11 @@ var OL = globalThis.OL || (globalThis.OL = {});
     // preview the level behind the card
     G.level = lv;
     G.sim = new OL.Sim(lv);
-    G.r.attach(G.sim);
+    attach(lv, G.sim);
+    updateHud(true);
     const p = progress()[lv.id];
     $("#rate-val").textContent = lv.rate;
-    showOverlay(`<h1>LVL ${pad(lv.slot)}</h1><h2>${lv.title}</h2>
+    showOverlay(`<h1>${lv.lab ? "LAB" : "LVL " + pad(lv.slot)} · ${OL.T.label}</h1><h2>${lv.title}</h2>
       <p>${lv.brief}</p>
       <div class="kv">
         <span>LEMMINGS</span><span>TO SAVE</span><span>TIME</span><span>RELEASE</span>
@@ -455,27 +588,60 @@ var OL = globalThis.OL || (globalThis.OL = {});
     actions([() => startLevel(lv.id), showSelect]);
   }
 
+  /* Results in the style of fastfetch: logo left, key/value right. */
+  const ASCII = [
+    "         /\\",
+    "        /  \\",
+    "       /    \\",
+    "      /      \\",
+    "     /        \\",
+    "    /   ____   \\",
+    "   /            \\",
+    "  /______________\\",
+  ];
   function showResult() {
     const sim = G.sim, lv = G.level;
     const won = sim.status === "won";
     setScreen("result");
     G.back = showSelect;
+    let best = sim.saved;
     if (!sim.infinite && !G.replay) {
       const pr = progress(), p = pr[lv.id] || { best: 0, done: false };
-      p.best = Math.max(p.best, sim.saved); p.done = p.done || won;
+      p.best = Math.max(p.best, sim.saved); p.done = p.done || won; best = p.best;
       pr[lv.id] = p; store.set("ol.progress", pr);
     }
-    const used = SKILLS.filter((s) => sim.used[s.id]).map((s) => `<span class="chip">${s.label.toUpperCase()}<b>${sim.used[s.id]}</b></span>`).join("") || `<span class="chip">none</span>`;
+    const used = SKILLS.filter((s) => sim.used[s.id]).map((s) => `${s.id} ${sim.used[s.id]}`).join(" · ") || "none";
+    const causes = {};
+    for (const l of sim.lems) if (l.cause) causes[l.cause] = (causes[l.cause] || 0) + 1;
+    const lost = Object.entries(causes).map(([k, v]) => `${v} ${k}`).join(", ") || "none";
+    const secs = Math.round(sim.tick / C.TPS);
     const msg = won
       ? (sim.saved === sim.total ? "Every single one. Flawless." : sim.saved - sim.need >= 3 ? "Comfortably done. Can you save more?" : "Just enough. The network holds.")
       : sim.endReason === "time" ? "Out of time." : "Not enough made it home.";
-    showOverlay(`<div class="result"><h1>LVL ${pad(lv.slot)} · ${lv.title}</h1>
-      <h2 class="${won ? "won" : "lost"}">${won ? "SYSTEM RESTORED" : "SEGFAULT"}</h2>
-      <div class="big">${sim.saved}<small>/ ${sim.total} saved · needed ${sim.need}</small></div>
-      <p class="muted">${msg} ${G.replay ? "(replay)" : ""}</p>
-      <div class="chips">${used}</div>
-      <div class="menu"><div class="item">${won ? "PLAY AGAIN" : "RETRY"}</div><div class="item">LEVELS</div></div></div>`);
+    const row = (k, v) => `<div><b>${k}</b>: ${v}</div>`;
+    const T = OL.T;
+    const blocks = [T.void, T.danger, T.accent, T.warn, T.accent2, T.special, T.accentHot, T.text].map((c) => `<i style="background:${c}"></i>`).join("");
+    showOverlay(`<div class="ff">
+        <pre class="ff-logo ${won ? "" : "bad"}">${ASCII.join("\n")}</pre>
+        <div class="ff-info">
+          <div class="ff-head"><span>lemmings</span>@<span>omarchy</span></div>
+          <div class="ff-rule">${"─".repeat(22)}</div>
+          ${row("Status", `<span class="${won ? "good" : "bad"}">${won ? "SYSTEM RESTORED" : "SEGFAULT"}</span>`)}
+          ${row("Level", `${lv.lab ? "LAB" : pad(lv.slot)} ${lv.title}`)}
+          ${row("Saved", `${sim.saved}/${sim.total} (needed ${sim.need})`)}
+          ${row("Lost", lost)}
+          ${row("Uptime", `${Math.floor(secs / 60)}m ${pad(secs % 60)}s`)}
+          ${row("Skills", used)}
+          ${row("Release", sim.rate)}
+          ${row("Theme", T.label)}
+          ${row("Best", `${best}/${sim.total}${G.replay ? " (replay)" : ""}`)}
+          <div class="ff-blocks">${blocks}</div>
+        </div>
+      </div>
+      <p class="muted ff-msg">${msg}</p>
+      <div class="menu"><div class="item">${won ? "PLAY AGAIN" : "RETRY"}</div><div class="item">LEVELS</div></div>`, "ff-card");
     actions([restart, showSelect]);
+    renderWorkspaces();
   }
 
   function showPauseMenu() {
@@ -506,9 +672,10 @@ var OL = globalThis.OL || (globalThis.OL = {});
         <kbd>← →</kbd><span>scroll · or move the mouse to the screen edge · right-drag · minimap</span>
         <kbd>z / x</kbd><span>zoom out / in</span>
         <kbd>m / b</kbd><span>sound / music</span>
+        <kbd>l</kbd><span>journal log on / off</span>
         <kbd>esc</kbd><span>menu</span>
       </div>
-      <p class="muted">BLOCKER turns others around · BUILDER lays 12 steps · BASHER tunnels sideways · MINER tunnels down at 45° · DIGGER digs straight down · BOMBER explodes after 5 s. Metal and tech plating can't be broken. Purple chevrons can only be bashed in the arrow's direction. Falls longer than six lemming-heights are fatal; lava and coolant are always fatal.</p>
+      <p class="muted">BLOCKER turns others around · BUILDER lays 12 steps · BASHER tunnels sideways · MINER tunnels down at 45° · DIGGER digs straight down · BOMBER explodes after 5 s. Metal and tech plating can't be broken. Purple chevrons can only be bashed in the arrow's direction. Falls longer than six lemming-heights are fatal; lava and coolant are always fatal. The <b>OOM killer</b> press slams on a timer (its light blinks first). <b>Sliding windows</b> carry anyone standing on them.</p>
       <div class="menu"><div class="item">BACK</div></div>`);
     actions([prev]);
   }
@@ -597,7 +764,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     const demo = OL.getLevel(lv || "network-nodes") || OL.LEVELS[0];
     G.level = demo;
     G.sim = new OL.Sim(demo);
-    G.r.attach(G.sim);
+    attach(demo, G.sim);
     requestAnimationFrame(frame);
     if (lv && OL.getLevel(lv)) {
       const sol = params.get("solution");

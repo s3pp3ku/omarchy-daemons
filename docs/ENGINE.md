@@ -8,7 +8,8 @@ css/style.css         Omarchy UI styling
 js/core/terrain.js    pixel material map + level shape rasteriser   (DOM-free)
 js/core/sim.js        deterministic lemming simulation + replays     (DOM-free)
 js/core/levels.js     level / solution registry                      (DOM-free)
-js/gfx/palette.js     colours
+js/gfx/palette.js     lemming colours
+js/gfx/theme.js       theme palettes (UI + neon linework + scenery + backdrop)
 js/gfx/sprites.js     lemming pixel art (generated at startup)
 js/gfx/terrain-render.js  terrain textures, animated fluids, neon glow
 js/gfx/scenery.js     entrance hatch, exit gate, parallax backdrop
@@ -65,6 +66,20 @@ Map edges act as metal walls at the sides and as a bottomless drop at the bottom
 | Bomber | 5 s fuse, then a 13 px-radius explosion (metal is untouched). Nuke = bombers for everyone. |
 
 Walkers pass through each other; only blockers interact.
+
+## Mechanisms (`level.objects`)
+| object | behaviour |
+|---|---|
+| crusher ("OOM killer") | Timer: up → rises → waits → 24-tick warning (light blinks, head shudders) → slams for `down` ticks. Anyone within its width while it's down dies (`oom`). Not solid. |
+| window | Sliding platform, solid and indestructible (`PLAT`, not stored in the pixel map). Moves 1 px every `step` ticks with dwell pauses at both ends. Lemmings standing on it move with it; anyone it moves onto is lifted onto its top. |
+
+Both are pure functions of the tick, so replays stay exact.
+
+## Themes
+`js/gfx/theme.js` holds the palettes. A level names one with `theme`; the player can override it from **THEMES** on the title screen (`localStorage ol.theme`). Themes recolour the UI, neon edges, tech panels, circuit-board steps, one-way chevrons, hatch, gate and backdrop. Lemmings, soil and hazards keep their colours, so gameplay reads the same everywhere.
+
+## Journal
+In play, a `journalctl`-style log (toggle with `L`) records starts, assignments, exits and deaths with their cause: falls with distance, drowning, lava, OOM killer, bombs, and nukes.
 
 ## Replays
 `sim.actions` records `{t, a:"assign", id, skill}`, `{t, a:"rate", v}` and `{t, a:"nuke"}`. Each action is applied before tick `t` runs. `OL.runReplay(level, actions)` runs a list headlessly. In the browser, the debug panel can copy the current replay or play any recorded solution.

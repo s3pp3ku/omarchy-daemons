@@ -107,6 +107,68 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.status = "play";        // play | won | lost
       this.entrances = level.entrances.map((e) => ({ x: e.x, y: e.y, dir: e.dir || 1 }));
       this.exits = level.exits.map((e) => ({ x: e.x, y: e.y }));
+
+      /* moving hazards / mechanisms (see docs/LEVEL_FORMAT.md) */
+      this.crushers = [];
+      this.platforms = [];
+      for (const o of level.objects || []) {
+        if (o.type === "crusher") this.crushers.push(Object.assign({ w: 16, period: 90, down: 14, rise: 20, phase: 0 }, o, { c: 0, slamming: false }));
+        else if (o.type === "window") {
+          const p = Object.assign({ axis: "x", range: 40, step: 2, dwell: [40, 40], phase: 0 }, o);
+          p.x0 = o.x; p.y0 = o.y; p.off = this.platformOffset(p, 0);
+          if (p.axis === "x") p.x = p.x0 + p.off; else p.y = p.y0 - p.off;
+          this.platforms.push(p);
+        }
+      }
+      if (this.platforms.length) this.terrain.dyn = this.platforms;
+    }
+
+    /* where a sliding window sits at tick t: dwell, slide out, dwell, slide back */
+    platformOffset(p, t) {
+      const mv = p.range * p.step, total = p.dwell[0] + mv + p.dwell[1] + mv;
+      let c = (((t + p.phase) % total) + total) % total;
+      if (c < p.dwell[0]) return 0;
+      c -= p.dwell[0];
+      if (c < mv) return Math.floor(c / p.step);
+      c -= mv;
+      if (c < p.dwell[1]) return p.range;
+      c -= p.dwell[1];
+      return p.range - Math.floor(c / p.step);
+    }
+
+    /* OOM killer: the press is up, then warns, then slams for `down` ticks */
+    crusherPhase(k, t) {
+      const c = (((t + k.phase) % k.period) + k.period) % k.period;
+      return { c, slam: c >= k.period - k.down, warn: c >= k.period - k.down - 24 && c < k.period - k.down };
+    }
+
+    updateMechanisms() {
+      const RIDE = [ST.WALK, ST.BUILD, ST.SHRUG, ST.BLOCK, ST.BASH, ST.DIG, ST.MINE];
+      for (const p of this.platforms) {
+        const off = this.platformOffset(p, this.tick + 1);
+        const nx = p.axis === "x" ? p.x0 + off : p.x0, ny = p.axis === "y" ? p.y0 - off : p.y0;
+        const dx = nx - p.x, dy = ny - p.y;
+        if (!dx && !dy) continue;
+        const riders = this.lems.filter((l) => RIDE.includes(l.state) &&
+          l.x >= p.x && l.x < p.x + p.w && l.y + 1 === p.y);
+        p.x = nx; p.y = ny; p.off = off;
+        for (const l of riders) { l.x += dx; l.y += dy; }
+        /* a window moving onto someone scoops them up onto its top */
+        for (const l of this.lems) {
+          if (l.state === ST.OUT || l.state === ST.DIE || l.state === ST.EXIT) continue;
+          if (l.x >= p.x && l.x < p.x + p.w && l.y >= p.y && l.y < p.y + p.h) l.y = p.y - 1;
+        }
+      }
+      for (const k of this.crushers) {
+        const ph = this.crusherPhase(k, this.tick);
+        if (ph.slam && !k.slamming) this.emit("crush", k.x, k.y);
+        k.slamming = ph.slam; k.warn = ph.warn; k.c = ph.c;
+        if (!ph.slam) continue;
+        for (const l of this.lems) {
+          if (l.state === ST.OUT || l.state === ST.DIE || l.state === ST.EXIT) continue;
+          if (Math.abs(l.x - k.x) <= (k.w >> 1) + 2 && l.y <= k.y && l.y >= k.y - 18) this.kill(l, "oom");
+        }
+      }
     }
 
     get out() { return this.lems.filter((l) => l.state !== ST.OUT).length; }
@@ -153,7 +215,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         this.setState(l, st);
         if (st === ST.BUILD) { l.bricks = C.BRICKS; l.t = C.BUILD_PERIOD - 3; }
       }
-      this.emit("assign", l.x, l.y - 8, { skill });
+      this.emit("assign", l.x, l.y - 8, { skill, id });
       return true;
     }
 
@@ -187,6 +249,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     step() {
       if (this.status !== "play") return;
       this.spawn();
+      this.updateMechanisms();
       const blockers = [];
       for (const l of this.lems) if (l.state === ST.BLOCK) blockers.push(l);
       for (const l of this.lems) this.update(l, blockers);
@@ -229,7 +292,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       l.cause = cause;
       l.fuse = -1;
       this.setState(l, ST.DIE);
-      this.emit("die", l.x, l.y, { cause });
+      this.emit("die", l.x, l.y, { cause, id: l.id, fall: l.fall });
     }
 
     update(l, blockers) {
@@ -268,7 +331,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
           if (Math.abs(l.x - e.x) <= C.EXIT_RX && l.y <= e.y && l.y >= e.y - C.EXIT_RY) {
             this.setState(l, ST.EXIT);
             l.x = e.x;
-            this.emit("exit", e.x, e.y);
+            this.emit("exit", e.x, e.y, { id: l.id });
             break;
           }
         }
@@ -421,7 +484,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         for (let x = cx - r; x <= cx + r; x++)
           if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r) px.push(x, y);
       t.removePixels(px, 0);
-      this.emit("boom", cx, cy);
+      this.emit("boom", cx, cy, { id: l.id, nuked: this.nuked });
       l.cause = "boom";
       l.fuse = -1;
       l.state = ST.OUT;

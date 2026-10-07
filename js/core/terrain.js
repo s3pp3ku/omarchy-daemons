@@ -17,6 +17,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     WATER: 7,   // lethal coolant (not solid)
     OW_L: 8,    // one-way dirt: can only be bashed/mined while moving LEFT
     OW_R: 9,    // one-way dirt: can only be bashed/mined while moving RIGHT
+    PLAT: 10,   // moving "window" platform (not stored in the map; see Terrain.dyn)
   };
   const NAMES = {
     air: M.AIR, dirt: M.DIRT, rock: M.ROCK, metal: M.METAL, tech: M.TECH,
@@ -26,9 +27,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
   const SOLID = new Uint8Array(16);
   const LETHAL = new Uint8Array(16);
   const HARD = new Uint8Array(16);      // indestructible
-  [M.DIRT, M.ROCK, M.METAL, M.TECH, M.BRICK, M.OW_L, M.OW_R].forEach((m) => (SOLID[m] = 1));
+  [M.DIRT, M.ROCK, M.METAL, M.TECH, M.BRICK, M.OW_L, M.OW_R, M.PLAT].forEach((m) => (SOLID[m] = 1));
   [M.LAVA, M.WATER].forEach((m) => (LETHAL[m] = 1));
-  [M.METAL, M.TECH].forEach((m) => (HARD[m] = 1));
+  [M.METAL, M.TECH, M.PLAT].forEach((m) => (HARD[m] = 1));
 
   class Terrain {
     constructor(w, h) {
@@ -37,12 +38,17 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.m = new Uint8Array(w * h);
       this.version = 0;
       this.dirty = [];   // rects [x0,y0,x1,y1] changed since last render
+      this.dyn = null;   // moving platforms: [{x,y,w,h}] treated as solid PLAT
     }
 
     get(x, y) {
       if (x < 0 || x >= this.w) return M.METAL;   // side walls
       if (y < 0 || y >= this.h) return M.AIR;     // open sky / bottomless
-      return this.m[y * this.w + x];
+      const v = this.m[y * this.w + x];
+      if (v === M.AIR && this.dyn) {
+        for (const p of this.dyn) if (x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.h) return M.PLAT;
+      }
+      return v;
     }
     solid(x, y) { return SOLID[this.get(x, y)] === 1; }
     lethal(x, y) { return LETHAL[this.get(x, y)] === 1; }

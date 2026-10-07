@@ -9,6 +9,7 @@ OL.registerLevel({
   brief: "Twenty-five users, one gate. An upper backbone of broken links over a flooded service tunnel — and a firewall in the middle of both. Hold the crowd, scout a route, then let them through.",
   size: [1280, 320],
   seed: 7,
+  theme: "omarchy",
   lemmings: 25,
   save: 20,
   time: 240,

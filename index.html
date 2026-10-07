@@ -9,14 +9,15 @@
 </head>
 <body>
   <header id="hud">
-    <div class="brand"><span class="om">OM<i class="tri"></i>RCHY</span><span class="sep">//</span>LEMMINGS</div>
-    <div class="lvl" id="hud-level"></div>
-    <div class="stats" id="hud-stats"></div>
+    <div class="wb-left"><span class="wb-mark" title="Omarchy Lemmings"><i class="tri"></i></span><div id="wb-ws"></div></div>
+    <div class="wb-center" id="hud-level"></div>
+    <div class="wb-right" id="hud-stats"></div>
   </header>
 
   <main id="stage">
     <canvas id="screen"></canvas>
     <div id="hover-tag"></div>
+    <div id="journal"></div>
     <div id="toast"></div>
     <div id="overlay"></div>
     <aside id="debug" hidden></aside>
@@ -43,8 +44,11 @@
   <script src="js/core/levels.js"></script>
   <script src="levels/00-sandbox.js"></script>
   <script src="levels/02-network-nodes.js"></script>
-  <script src="levels/solutions.js"></script>
+  <script src="levels/90-hazard-lab.js"></script>
+  <script src="levels/solutions-02.js"></script>
+  <script src="levels/solutions-lab.js"></script>
   <script src="js/gfx/palette.js"></script>
+  <script src="js/gfx/theme.js"></script>
   <script src="js/gfx/sprites.js"></script>
   <script src="js/gfx/terrain-render.js"></script>
   <script src="js/gfx/scenery.js"></script>

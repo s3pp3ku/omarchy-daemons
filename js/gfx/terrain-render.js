@@ -10,7 +10,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
   const M = OL.M;
   const rgb = OL.rgb;
 
-  const C = {
+  /* fixed colours + theme-driven ones (see makeColors) */
+  let C = null;
+  const BASE_C = {
     dirt: ["#5b3a28", "#6c4530", "#7b5036", "#8a5c3d"].map(rgb),
     dirtDark: rgb("#3a2519"),
     dirtPebble: rgb("#a07650"),
@@ -56,6 +58,25 @@ var OL = globalThis.OL || (globalThis.OL = {});
     water: ["#c8fbff", "#6fe3ff", "#2fb3e8", "#1c86c9", "#115e9e", "#0b3f78"].map(rgb),
   };
 
+  function makeColors(T) {
+    const mix = OL.mix, k = (h) => rgb(h);
+    const c = Object.assign({}, BASE_C);
+    c.rock = ["#454a5e", "#4e5469", "#575d74", "#3f4356"].map((h) => k(mix(h, T.rockTint, 0.35)));
+    c.rockHi = k(mix("#6e7592", T.rockTint, 0.3));
+    c.rockLo = k(mix("#2c2f3d", T.rockTint, 0.3));
+    c.metal = k(T.metal); c.metal2 = k(mix(T.metal, "#ffffff", 0.03));
+    c.metalHi = k(mix(T.metal, "#ffffff", 0.14)); c.metalLo = k(mix(T.metal, "#000000", 0.3));
+    c.metalBorder = k(mix(T.metal, "#000000", 0.55));
+    c.techBase = k(T.tech); c.techBorder = k(mix(T.tech, T.accent, 0.12));
+    c.techLine = k(mix(T.tech, T.accent, 0.35)); c.techNode = k(T.accent);
+    c.neon = k(T.accent); c.neonHot = k(T.accentHot); c.neonSide = k(T.accentDim); c.cyan = k(T.accent2);
+    c.pcb = k(mix(T.accent, "#000000", 0.62)); c.pcbDark = k(mix(T.accent, "#000000", 0.8));
+    c.pcbLine = k(mix(T.accent, "#000000", 0.5)); c.pcbTrace = k(T.accentHot);
+    c.owArrow = k(T.special); c.owArrowHi = k(mix(T.special, "#ffffff", 0.4));
+    c.owBase = k(mix(T.special, "#000000", 0.78)); c.owBase2 = k(mix(T.special, "#000000", 0.72));
+    return c;
+  }
+
   function hash(x, y) {
     let h = (x * 374761393 + y * 668265263) | 0;
     h = (h ^ (h >>> 13)) * 1274126177;
@@ -72,6 +93,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
   class TerrainRenderer {
     constructor(doc, terrain) {
+      C = makeColors(OL.T);
       this.t = terrain;
       const W = terrain.w, H = terrain.h;
       this.W = W; this.H = H;

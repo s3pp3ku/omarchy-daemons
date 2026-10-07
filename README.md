@@ -24,6 +24,12 @@ small budget of tools so enough of them make it home.
   control, and a random search of 60,000 plans found no shortcut. Its design
   record is in [`docs/levels/02-network-nodes.md`](docs/levels/02-network-nodes.md).
 - **Pixel art and synth audio made in code.** There are no image or audio files.
+- **Omarchy flavour:** a Waybar-style top bar (campaign slots as workspaces), a
+  launcher-style level select with fuzzy search, nine theme palettes (each
+  level brings its own; override from THEMES), a `journalctl`-style event log
+  (`L`), and a fastfetch-style results screen.
+- **Hazard Lab:** a playground for the OOM-killer press and sliding-window
+  platforms (retracting bridge + lift), with a verified solution.
 - **Debug and design tools:** material view, state labels, zones and a splat
   ruler, single-step, in-place level reload, test lemmings, replay copy and
   playback.
@@ -52,6 +58,7 @@ or click the `λ` button in the Omarchy bar once the plugin is enabled.
 | arrows · screen edge · right-drag · minimap | scroll |
 | `Z` / `X` | zoom out / in |
 | `M` / `B` | sound / music |
+| `L` | journal log on / off |
 | `H` | help |
 | `` ` `` | debug tools |
 
@@ -73,6 +80,7 @@ requests.
 ```sh
 node tools/verify.js        # every recorded solution still wins
 node tools/solve-02.js      # scripted LVL 02 solutions (add --write to record them)
+node tools/solve-lab.js     # scripted Hazard Lab solution
 node tools/shortcuts-02.js  # lazy-strategy probes (add --random N for a random search)
 node tools/tolerance-02.js  # how forgiving each key decision is
 ```
