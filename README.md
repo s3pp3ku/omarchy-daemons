@@ -11,19 +11,24 @@ small budget of tools so enough of them make it home.
 
 ![Gameplay](screenshots/gameplay.png)
 
-## What's here (v0.2)
+## What's here (v0.3)
 
 - **A rebuilt engine** with pixel-level terrain: digging, bashing, mining and
   building remove or add individual pixels, as in the originals.
+- **Smooth, high-resolution graphics:** anti-aliased terrain rendered at up to
+  4× detail, vector lemmings, live fluids, and a zoom that fits any window.
 - **Deterministic physics and replays.** Every recorded solution is re-verified
   headlessly with `node tools/verify.js`.
 - **Six classic skills:** Blocker, Builder, Basher, Miner, Digger, Bomber.
   Materials: dirt, rock, metal, tech, one-way walls, lava and coolant.
+- **LVL 03 · DEPENDENCIES:** two hatches. Group B is sealed behind a one-way
+  door that only group A can open from outside, and opening it puts A at risk.
+  Two verified strategies; a random search found no shortcut.
 - **LVL 02 · NETWORK NODES:** a sample level with three verified routes
   (upper bridge network, lower service tunnel, hybrid drop). It needs crowd
   control, and a random search of 60,000 plans found no shortcut. Its design
   record is in [`docs/levels/02-network-nodes.md`](docs/levels/02-network-nodes.md).
-- **Pixel art and synth audio made in code.** There are no image or audio files.
+- **Art and synth audio made in code.** There are no image or audio files.
 - **Omarchy flavour:** a Waybar-style top bar (campaign slots as workspaces), a
   launcher-style level select with fuzzy search, nine theme palettes (each
   level brings its own; override from THEMES), a `journalctl`-style event log
@@ -59,6 +64,8 @@ or click the `λ` button in the Omarchy bar once the plugin is enabled.
 | `Z` / `X` | zoom out / in |
 | `M` / `B` | sound / music |
 | `L` | journal log on / off |
+| `G` | skill preview (ghost of what a skill will do) |
+| `0` | zoom to fit |
 | `H` | help |
 | `` ` `` | debug tools |
 
@@ -80,6 +87,7 @@ requests.
 ```sh
 node tools/verify.js        # every recorded solution still wins
 node tools/solve-02.js      # scripted LVL 02 solutions (add --write to record them)
+node tools/solve-03.js      # scripted LVL 03 solutions + probes (--random N)
 node tools/solve-lab.js     # scripted Hazard Lab solution
 node tools/shortcuts-02.js  # lazy-strategy probes (add --random N for a random search)
 node tools/tolerance-02.js  # how forgiving each key decision is

@@ -49,7 +49,7 @@ OL.registerLevel({
     { m: "rock", poly: [[244, 150], [520, 150], [516, 176], [250, 176]] },
     /* coolant pool sunk into R1 */
     { m: "air", rect: [404, 120, 30, 16] },
-    { m: "water", rect: [404, 124, 30, 12] },
+    { m: "water", rect: [404, 122, 30, 14] },
 
     /* R2 — the firewall: a metal node on top, a rock wall down to the floor */
     { m: "metal", rect: [548, 104, 212, 10] },
@@ -59,8 +59,7 @@ OL.registerLevel({
 
     /* R3 — eastern ridge with a lava trench at its west end */
     { m: "dirt", poly: [[760, 150], [1040, 150], [1040, 176], [764, 176]] },
-    { m: "air", rect: [760, 150, 30, 10] },
-    { m: "lava", rect: [760, 154, 30, 6] },
+    { m: "lava", rect: [760, 150, 30, 10] },
 
     /* K — kernel room around the exit: rock west wall, soil roof, metal east wall */
     { m: "dirt", rect: [1040, 150, 210, 26] },
@@ -70,7 +69,7 @@ OL.registerLevel({
 
     /* cavern: coolant channel cut into the floor */
     { m: "air", rect: [420, 244, 42, 52] },
-    { m: "water", rect: [420, 262, 42, 34] },
+    { m: "water", rect: [420, 247, 42, 49] },
 
     /* ceiling teeth (visual + stop tall staircases) */
     { m: "rock", poly: [[0, 0], [1280, 0], [1280, 18], [1180, 30], [1100, 14], [980, 40], [900, 16], [820, 34], [700, 12], [600, 46], [540, 20], [460, 30], [380, 14], [300, 36], [220, 16], [140, 26], [60, 12], [0, 22]] },

@@ -73,6 +73,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     oom: () => "killed by the OOM killer",
   };
   G.journalOn = store.get("ol.journal", true);
+  G.showPreview = store.get("ol.preview", true);
   function journal(kind, text) {
     if (!G.journalOn) return;
     const box = $("#journal");
@@ -138,7 +139,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       }
       updateHover();
       G.r.mouse = G.mouse;
-      G.r.draw({ hover: G.hover, hoverOk: G.hoverOk, paused: G.paused });
+      G.r.draw({ hover: G.hover, hoverOk: G.hoverOk, paused: G.paused, skill: G.showPreview ? G.sel : null });
       updateHud();
       if (G.debug) updateDebug();
     } else if (G.r.sim) {
@@ -258,7 +259,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     cv.addEventListener("wheel", (e) => {
       if (G.screen !== "play") return;
       e.preventDefault();
-      if (e.ctrlKey || e.altKey) G.r.setZoom(G.r.zoom + (e.deltaY < 0 ? 1 : -1));
+      if (e.ctrlKey || e.altKey) G.r.setZoom(G.r.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
       else { G.r.cam.x += (e.deltaY + e.deltaX) * 0.5 / G.r.zoom * G.r.dpr; G.r.clampCam(); }
     }, { passive: false });
 
@@ -306,9 +307,11 @@ var OL = globalThis.OL || (globalThis.OL = {});
       case "-": case "_": changeRate(-5); break;
       case "m": toast(OL.Audio.toggleMute() ? "sound off" : "sound on"); break;
       case "b": toast(OL.Audio.toggleMusic() ? "music on" : "music off"); break;
-      case "z": G.r.setZoom(G.r.zoom - 1); break;
-      case "x": G.r.setZoom(G.r.zoom + 1); break;
+      case "z": G.r.setZoom(G.r.zoom / 1.2); break;
+      case "x": G.r.setZoom(G.r.zoom * 1.2); break;
+      case "0": G.r.userZoom = 0; G.r.resize(); toast("zoom: fit"); break;
       case "h": case "?": showHelp(true); break;
+      case "g": G.showPreview = !G.showPreview; store.set("ol.preview", G.showPreview); toast(G.showPreview ? "skill preview on" : "skill preview off"); break;
       case "l": G.journalOn = !G.journalOn; store.set("ol.journal", G.journalOn); $("#journal").innerHTML = ""; toast(G.journalOn ? "journal on" : "journal off"); break;
       case "Escape": showPauseMenu(); break;
       case "`": case "~": toggleDebug(); break;
@@ -359,16 +362,13 @@ var OL = globalThis.OL || (globalThis.OL = {});
   function buildSkillBar() {
     const box = $("#skills");
     box.innerHTML = "";
-    const A = G.r.atlas;
+    const dpr = window.devicePixelRatio || 1;
     for (const s of SKILLS) {
       const el = document.createElement("div");
       el.className = "skill";
       el.dataset.id = s.id;
-      el.innerHTML = `<span class="key">${s.key}</span><span class="count"></span><canvas width="${A.FW}" height="${A.FH}"></canvas><span class="name">${s.label.toUpperCase()}</span>`;
-      const cv = el.querySelector("canvas"), g = cv.getContext("2d");
-      const ic = OL.SKILL_ICON[s.id], f = A.frame(ic[0], ic[1], 1);
-      g.drawImage(A.canvas, f.sx, f.sy, A.FW, A.FH, 0, 0, A.FW, A.FH);
-      if (s.id === "bomber") G.r.drawDigit(g, 5, A.OX - 1, 0);
+      el.innerHTML = `<span class="key">${s.key}</span><span class="count"></span><canvas width="${Math.round(36 * dpr)}" height="${Math.round(36 * dpr)}"></canvas><span class="name">${s.label.toUpperCase()}</span>`;
+      OL.LemmingArt.icon(el.querySelector("canvas"), s.id);
       el.onclick = () => selectSkill(s.id);
       el.title = `${s.label} (${s.key})`;
       box.appendChild(el);
@@ -673,6 +673,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
         <kbd>z / x</kbd><span>zoom out / in</span>
         <kbd>m / b</kbd><span>sound / music</span>
         <kbd>l</kbd><span>journal log on / off</span>
+        <kbd>g</kbd><span>skill preview (ghost) on / off</span>
+        <kbd>0</kbd><span>zoom to fit</span>
         <kbd>esc</kbd><span>menu</span>
       </div>
       <p class="muted">BLOCKER turns others around · BUILDER lays 12 steps · BASHER tunnels sideways · MINER tunnels down at 45° · DIGGER digs straight down · BOMBER explodes after 5 s. Metal and tech plating can't be broken. Purple chevrons can only be bashed in the arrow's direction. Falls longer than six lemming-heights are fatal; lava and coolant are always fatal. The <b>OOM killer</b> press slams on a timer (its light blinks first). <b>Sliding windows</b> carry anyone standing on them.</p>

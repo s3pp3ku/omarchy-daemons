@@ -51,7 +51,7 @@ button { font: inherit; color: inherit; }
 
 /* -------------------------------------------------------------- stage */
 #stage { position: relative; overflow: hidden; background: var(--void); }
-#screen { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; cursor: crosshair; }
+#screen { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
 #hover-tag {
   position: absolute; left: 12px; bottom: 10px; padding: 3px 9px; font-size: 12px; letter-spacing: .1em;
   background: rgba(7,11,13,.82); border: 1px solid var(--line); color: var(--neon-hot); pointer-events: none; display: none;
@@ -94,7 +94,7 @@ button { font: inherit; color: inherit; }
   position: relative; width: 74px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
   background: var(--panel); border: 1px solid var(--line); cursor: pointer; padding: 4px 2px 3px;
 }
-.skill canvas { width: 36px; height: 39px; image-rendering: pixelated; }
+.skill canvas { width: 36px; height: 36px; }
 .skill .name { font-size: 9px; letter-spacing: .14em; color: var(--dim); }
 .skill .count { position: absolute; top: 3px; right: 5px; font-size: 13px; font-weight: 700; color: var(--text); }
 .skill .key { position: absolute; top: 3px; left: 5px; font-size: 10px; color: var(--dim); }

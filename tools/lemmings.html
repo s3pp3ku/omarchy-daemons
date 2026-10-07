@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>lemming poses</title>
+<body style="background:#0a0e12;margin:10px;color:#9ab;font:12px monospace">
+<script src="../js/core/terrain.js"></script><script src="../js/core/sim.js"></script>
+<script src="../js/gfx/palette.js"></script><script src="../js/gfx/theme.js"></script><script src="../js/gfx/lemming.js"></script>
+<canvas id="c" width="1500" height="900"></canvas>
+<script>
+/* every state at a few animation phases, drawn 8x */
+const c=document.getElementById('c'), g=c.getContext('2d'), z=8;
+const rows=[['walk',[0,3,6,9,12]],['fall',[0,4,8]],['build',[0,2,4,6]],['dig',[0,3,6,9]],['bash',[0,1,2,3,4]],['mine',[0,2,4,6,8]],['block',[0,10]],['shrug',[0,10]],['exit',[0,4,8,12]],['die',[0,6,12,17]]];
+const causes=['splat','drown','burn','oom'];
+rows.forEach(([st,ts],r)=>ts.forEach((t,i)=>{ g.save(); g.translate(40+i*130+(r>=5?740:0), 150+(r%5)*170); g.scale(z,z);
+  const l={id:1,x:0,y:-1,dir:1,state:st,t, cause: causes[i%4]}; OL.LemmingArt.draw(g,l,t*2); g.restore(); }));
+</script>

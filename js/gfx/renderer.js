@@ -1,20 +1,14 @@
 /* Omarchy Lemmings — renderer.
-   Integer-zoom pixel art: world pixels are scaled up with nearest-neighbour,
-   so lemmings and terrain stay crisp. Owns the camera, particles, minimap
-   and debug overlays. */
+   Smooth rendering: terrain and backdrop are pre-rendered at S sub-pixels
+   per world pixel, everything else (lemmings, gates, mechanisms, particles)
+   is drawn as vectors, and the zoom fits the window exactly. Owns the
+   camera, particles, minimap and debug overlays. */
 "use strict";
 var OL = globalThis.OL || (globalThis.OL = {});
 
 (function () {
   const ST = OL.ST, C = OL.C, M = OL.M;
-  const S = OL.Scenery;
-
-  /* 3x5 pixel digits for bomb countdowns */
-  const DIGITS = {
-    1: [".#.", "##.", ".#.", ".#.", "###"], 2: ["##.", "..#", ".#.", "#..", "###"],
-    3: ["##.", "..#", ".#.", "..#", "##."], 4: ["#.#", "#.#", "###", "..#", "..#"],
-    5: ["###", "#..", "##.", "..#", "##."],
-  };
+  const S_ = OL.Scenery;
 
   class Renderer {
     constructor(canvas, minimap) {
@@ -22,35 +16,26 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.ctx = canvas.getContext("2d");
       this.mm = minimap;
       this.mmCtx = minimap ? minimap.getContext("2d") : null;
-      this.atlas = OL.Sprites.buildAtlas(document);
-      this.buildThemeAssets();
       this.zoom = 3;
+      this.S = 3;                         // terrain/backdrop render resolution (sub-pixels per world px)
       this.cam = { x: 0, y: 0 };
       this.particles = [];
       this.flashes = [];
       this.shake = 0;
       this.frame = 0;
+      this.time = 0;
       this.hover = null;
       this.debug = { materials: false, labels: false, zones: false };
       this.mouse = null;
     }
 
     /* ------------------------------------------------------------ setup */
-    /* hatch and gate art depend on the current theme */
-    buildThemeAssets() {
-      this.hatch = [0, 1, 2, 3].map((f) => S.drawHatch(document, f, false));
-      this.hatchBlink = [0, 1, 2, 3].map((f) => S.drawHatch(document, f, true));
-      this.gate = [0, 1, 2, 3, 4, 5].map((f) => S.drawGate(document, f));
-    }
-
     attach(sim) {
-      this.buildThemeAssets();
       this.sim = sim;
-      this.tr = new OL.TerrainRenderer(document, sim.terrain);
       this.particles.length = 0;
       this.backdrop = null;
       this.mmVersion = -1;
-      this.buildDecor(sim.level);
+      this.tr = null;
       this.resize();
       const lv = sim.level;
       const start = lv.camera || { x: sim.entrances[0].x - this.viewW() / 2, y: 0 };
@@ -58,34 +43,36 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.clampCam();
     }
 
+    /* (re)build the high-res terrain and decor when the level or S changes */
+    buildTerrain() {
+      this.tr = new OL.TerrainRenderer(document, this.sim.terrain, this.S);
+      this.buildDecor(this.sim.level);
+    }
+
     /* Non-colliding scenery: dim back-walls (any material, drawn faint) and
        hanging network cables with blinking node lights. */
     buildDecor(lv) {
-      this.decor = null; this.leds = [];
+      this.decor = null; this.leds = []; this.cables = [];
       const list = lv.decor || [];
-      if (!list.length) return;
       const walls = list.filter((d) => d.m);
-      let cv;
       if (walls.length) {
         const t = OL.buildTerrain({ size: lv.size, terrain: walls });
-        cv = new OL.TerrainRenderer(document, t).canvas;
-      } else {
-        cv = document.createElement("canvas"); cv.width = lv.size[0]; cv.height = lv.size[1];
+        this.decor = new OL.TerrainRenderer(document, t, Math.min(2, this.S));
       }
-      const g = cv.getContext("2d");
       for (const d of list) {
         if (!d.cable) continue;
         const [a, b] = d.cable, sag = d.sag || 20;
-        const n = Math.ceil(Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]));
-        g.fillStyle = d.color || OL.T.line;
-        for (let i = 0; i <= n; i++) {
-          const t = i / n;
-          const x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t + sag * 4 * t * (1 - t);
-          g.fillRect(Math.round(x), Math.round(y), 1, 1);
-          if (d.leds && i % d.leds === Math.floor(d.leds / 2)) this.leds.push([Math.round(x), Math.round(y) + 1, i]);
+        const pts = [];
+        for (let i = 0; i <= 40; i++) {
+          const t = i / 40;
+          pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + sag * 4 * t * (1 - t)]);
+        }
+        this.cables.push({ pts, color: d.color });
+        if (d.leds) {
+          const n = Math.max(1, Math.floor(Math.hypot(b[0] - a[0], b[1] - a[1]) / d.leds));
+          for (let i = 1; i < n; i++) { const p = pts[Math.round((i / n) * 40)]; this.leds.push([p[0], p[1] + 0.8, i]); }
         }
       }
-      this.decor = cv;
     }
 
     resize() {
@@ -95,17 +82,17 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.cv.height = Math.max(1, Math.round(r.height * dpr));
       this.dpr = dpr;
       if (!this.sim) return;
-      const fit = this.cv.height / this.sim.H;
-      if (this.userZoom) this.zoom = this.userZoom;
-      else this.zoom = Math.max(1, Math.round(fit));
-      // backdrop width depends on view width
-      this.backdrop = S.buildBackdrop(document, this.sim.W, this.sim.H, Math.ceil(this.viewW()) + 4, this.sim.level.seed || 3);
+      const fit = this.cv.height / this.sim.H;           // smooth graphics: fill the height exactly
+      this.zoom = this.userZoom ? Math.max(fit * 0.5, Math.min(fit * 3, this.userZoom)) : fit;
+      const S = Math.max(2, Math.min(4, Math.ceil(this.zoom - 0.15)));
+      if (!this.tr || S !== this.S) { this.S = S; this.buildTerrain(); }
+      this.backdrop = S_.buildBackdrop(document, this.sim.W, this.sim.H, Math.ceil(this.viewW()) + 4, this.sim.level.seed || 3, 1);
       this.clampCam();
     }
 
     setZoom(z) {
       const cx = this.cam.x + this.viewW() / 2, cy = this.cam.y + this.viewH() / 2;
-      this.userZoom = Math.max(1, Math.min(8, z));
+      this.userZoom = z;
       this.resize();
       this.cam.x = cx - this.viewW() / 2; this.cam.y = cy - this.viewH() / 2;
       this.clampCam();
@@ -141,7 +128,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
           vx: Math.cos(a) * s, vy: Math.sin(a) * s - (up || 0),
           life: L, max: L, g: opt.g === undefined ? 0.08 : opt.g,
           c: colors[(Math.random() * colors.length) | 0],
-          size: opt.big && Math.random() < opt.big ? 2 : 1,
+          size: (opt.big && Math.random() < opt.big ? 1.5 : 0.85) * (0.8 + Math.random() * 0.4),
           fade: !!opt.fade, glow: !!opt.glow,
         });
       }
@@ -210,97 +197,74 @@ var OL = globalThis.OL || (globalThis.OL = {});
     }
 
     /* --------------------------------------------------------------- draw */
-    animFrame(l) {
-      const tk = this.sim.tick;
-      switch (l.state) {
-        case ST.WALK: return ["walk", ((tk + l.id * 3) >> 1) & 3];
-        case ST.FALL: return ["fall", (tk >> 2) & 1];
-        case ST.BUILD: return ["build", Math.floor(((l.t % C.BUILD_PERIOD) * 6) / C.BUILD_PERIOD)];
-        case ST.SHRUG: return ["shrug", (l.t >> 3) & 1];
-        case ST.DIG: return ["dig", (l.t >> 1) & 3];
-        case ST.BASH: return ["bash", Math.floor(((l.t % C.BASH_PERIOD) * 4) / C.BASH_PERIOD)];
-        case ST.MINE: return ["mine", Math.floor(((l.t % C.MINE_PERIOD) * 4) / C.MINE_PERIOD)];
-        case ST.BLOCK: return ["block", (tk >> 3) & 1];
-        case ST.EXIT: return ["exit", Math.min(3, Math.floor((l.t * 4) / C.EXIT_TICKS))];
-        case ST.DIE: {
-          const f = Math.min(3, Math.floor((l.t * 4) / C.DIE_TICKS));
-          if (l.cause === "burn") return ["burn", f];
-          if (l.cause === "drown") return ["drown", f];
-          if (l.cause === "splat") return ["splat", f];
-          return null;
-        }
-      }
-      return null;
-    }
-
     draw(opts) {
       opts = opts || {};
-      const ctx = this.ctx, z = this.zoom, sim = this.sim;
+      const ctx = this.ctx, z = this.zoom, sim = this.sim, T = OL.T;
       this.frame++;
-      ctx.imageSmoothingEnabled = false;
+      this.time = performance.now() / 1000;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = OL.T.void;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.fillStyle = T.void;
       ctx.fillRect(0, 0, this.cv.width, this.cv.height);
       if (!sim) return;
       this.tr.update();
 
       const cx = this.cam.x, cy = this.cam.y;
       const W = sim.W, H = sim.H;
-      // world -> screen: s = (w - cam) * z
       const sh = this.shake ? (Math.random() - 0.5) * this.shake * z * 0.5 : 0;
-      const vx = Math.round(-cx * z + sh), vy = Math.round(-cy * z + sh * 0.6);
+      const vx = -cx * z + sh, vy = -cy * z + sh * 0.6;
 
-      /* above the world's ceiling: solid dark rock band */
-      if (vy > 0) { ctx.fillStyle = OL.T.ceil; ctx.fillRect(0, 0, this.cv.width, vy); ctx.fillStyle = OL.T.accentDim; ctx.fillRect(0, vy - 2, this.cv.width, 1); }
+      if (vy > 0) { ctx.fillStyle = T.ceil; ctx.fillRect(0, 0, this.cv.width, vy); }
 
       /* backdrop */
       if (this.backdrop) {
-        for (const L of this.backdrop.layers) {
-          const ox = Math.round(-cx * L.f * z);
-          ctx.drawImage(L.c, ox, vy, L.c.width * z, H * z);
-        }
+        for (const L of this.backdrop.layers) ctx.drawImage(L.c, -cx * L.f * z, vy, L.w * z, H * z);
       }
 
       /* world */
       ctx.save();
       ctx.translate(vx, vy);
       ctx.scale(z, z);
-
-      // entrance hatches (behind lemmings)
-      const openF = Math.min(3, Math.max(0, Math.floor((sim.tick - (C.OPEN_DELAY - 16)) / 4)));
-      for (const e of sim.entrances) {
-        ctx.drawImage(((this.frame >> 4) & 1 ? this.hatchBlink : this.hatch)[sim.tick < C.OPEN_DELAY - 16 ? 0 : openF], e.x - S.HATCH.AX, e.y - S.HATCH.AY);
-      }
-      for (const e of sim.exits) {
-        ctx.drawImage(this.gate[(this.frame >> 3) % 6], e.x - S.GATE.AX, e.y - S.GATE.AY);
-      }
+      const now = this.time;
 
       // back-walls and cables
       if (this.decor && !this.debug.materials) {
         ctx.globalAlpha = 0.34;
-        ctx.drawImage(this.decor, 0, 0);
+        this.decor.draw(ctx);
         ctx.globalAlpha = 1;
+      }
+      if (!this.debug.materials) {
+        ctx.lineWidth = 0.6; ctx.lineCap = "round";
+        for (const c of this.cables) {
+          ctx.strokeStyle = c.color || T.line;
+          ctx.beginPath(); c.pts.forEach((p, i) => (i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1]))); ctx.stroke();
+        }
         for (const L of this.leds) {
-          const on = ((this.frame >> 4) + L[2]) % 5;
-          ctx.fillStyle = on === 0 ? OL.T.accentHot : on === 1 ? OL.T.accent : OL.T.accentDeep;
-          ctx.fillRect(L[0], L[1], 1, 1);
+          const on = (Math.floor(now * 3) + L[2]) % 5;
+          ctx.fillStyle = on === 0 ? T.accentHot : on === 1 ? T.accent : T.accentDeep;
+          ctx.beginPath(); ctx.arc(L[0], L[1], 0.55, 0, Math.PI * 2); ctx.fill();
         }
       }
 
-      // terrain + glow
+      // entrance and exit (behind lemmings)
+      const open = Math.max(0, Math.min(1, (sim.tick - (C.OPEN_DELAY - 16)) / 12));
+      for (const e of sim.entrances) S_.drawHatch(ctx, e.x + 0.5, e.y + 1, open, Math.floor(now * 2) % 2 === 0, now);
+      for (const e of sim.exits) S_.drawGate(ctx, e.x + 0.5, e.y + 1, now);
+
+      // terrain + fluids
       if (this.debug.materials) this.drawMaterials(ctx);
       else {
-        ctx.drawImage(this.tr.canvas, 0, 0);
-        ctx.drawImage(this.tr.fluidFrame(this.frame >> 3), 0, 0);
+        this.tr.draw(ctx, cx - 2, cy - 2, cx + this.viewW() + 2, cy + this.viewH() + 2);
+        this.tr.drawFluids(ctx, now);
       }
       ctx.restore();
 
-      // bloom (smooth scaling for a soft glow)
+      // bloom
       if (!this.debug.materials) {
         ctx.save();
-        ctx.imageSmoothingEnabled = true;
         ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = 0.55;
+        ctx.globalAlpha = 0.5;
         ctx.drawImage(this.tr.getGlow(), vx, vy, W * z, H * z);
         ctx.restore();
       }
@@ -308,52 +272,45 @@ var OL = globalThis.OL || (globalThis.OL = {});
       ctx.save();
       ctx.translate(vx, vy);
       ctx.scale(z, z);
-      ctx.imageSmoothingEnabled = false;
 
       /* sliding window platforms */
-      for (const p of sim.platforms) this.drawWindowPlatform(ctx, p);
+      for (const p of sim.platforms) S_.drawWindowPlatform(ctx, p, now);
 
       /* lemmings */
-      const A = this.atlas;
       for (const l of sim.lems) {
         if (l.state === ST.OUT) continue;
-        const fr = this.animFrame(l);
-        if (!fr) continue;
-        const f = A.frame(fr[0], fr[1], l.dir);
-        if (l.state === ST.EXIT) ctx.globalAlpha = 1 - Math.max(0, (l.t - C.EXIT_TICKS / 2) / (C.EXIT_TICKS / 2));
-        ctx.drawImage(A.canvas, f.sx, f.sy, A.FW, A.FH, l.x - A.OX, l.y - A.OY, A.FW, A.FH);
-        ctx.globalAlpha = 1;
-        if (l.fuse >= 0) this.drawDigit(ctx, Math.ceil(l.fuse / C.TPS) || 1, l.x - 1, l.y - 25);
+        if (l.state === ST.DIE && l.cause === "void") continue;
+        OL.LemmingArt.draw(ctx, l, sim.tick);
+        if (l.fuse >= 0) this.drawCountdown(ctx, Math.ceil(l.fuse / C.TPS) || 1, l.x + 0.5, l.y - 20);
       }
 
       /* OOM killers (in front of lemmings) */
-      for (const k of sim.crushers) this.drawCrusher(ctx, k, sim);
+      for (const k of sim.crushers) S_.drawCrusher(ctx, k, sim.crusherPhase(k, sim.tick), now);
+
+      /* assignment preview: a faint ghost of what the selected skill will do */
+      if (opts.hover && opts.hoverOk && opts.skill) this.drawPreview(ctx, opts.hover, opts.skill);
 
       /* hover bracket */
       const h = opts.hover;
-      if (h && h.state !== ST.OUT) {
-        const col = opts.hoverOk ? OL.T.accent : OL.T.dim;
-        this.bracket(ctx, h.x - 7, h.y - 18, 15, 20, col);
-      }
+      if (h && h.state !== ST.OUT) this.bracket(ctx, h.x - 6.5, h.y - 18, 14, 20, opts.hoverOk ? T.accent : T.dim);
 
       /* particles */
       for (const p of this.particles) {
-        ctx.globalAlpha = p.fade ? Math.max(0, p.life / p.max) : 1;
+        ctx.globalAlpha = p.fade ? Math.max(0, p.life / p.max) : Math.min(1, p.life / 6);
         ctx.fillStyle = p.c;
-        ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 0.6, 0, Math.PI * 2); ctx.fill();
       }
       ctx.globalAlpha = 1;
       /* explosion flash rings */
       for (const f of this.flashes) {
         const r = 4 + f.t * 2.2;
         ctx.globalAlpha = 1 - f.t / 14;
-        ctx.strokeStyle = f.t < 4 ? "#fff6c8" : "#ff6a2b";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = f.t < 4 ? "#fff6c8" : T.warn;
+        ctx.lineWidth = 1.6 - f.t * 0.08;
         ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.stroke();
       }
       ctx.globalAlpha = 1;
 
-      /* debug overlays */
       if (this.debug.zones) this.drawZones(ctx);
       ctx.restore();
       if (this.debug.labels) this.drawLabels(ctx, vx, vy, z);
@@ -361,79 +318,60 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.drawMinimap();
     }
 
-    drawWindowPlatform(ctx, p) {
-      const T = OL.T, x = p.x, y = p.y, w = p.w, h = p.h;
-      ctx.fillStyle = T.panel; ctx.fillRect(x, y, w, h);
-      ctx.fillStyle = T.accentDim; ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h); ctx.fillRect(x, y + h - 1, w, 1);
-      ctx.fillStyle = T.accent; ctx.fillRect(x, y, w, 1);
-      if (h >= 5) {
-        ctx.fillStyle = T.line2; ctx.fillRect(x + 1, y + 1, w - 2, 2);
-        for (let i = 0; i < 3; i++) { ctx.fillStyle = i === 0 ? T.accentHot : T.accentDim; ctx.fillRect(x + w - 5 - i * 3, y + 1, 2, 2); }
+    drawPreview(ctx, l, skill) {
+      const T = OL.T, d = l.dir, x = l.x + 0.5, y = l.y + 1;
+      ctx.save();
+      ctx.globalAlpha = 0.45 + 0.15 * Math.sin(this.time * 6);
+      ctx.strokeStyle = T.accentHot; ctx.fillStyle = OL.mix(T.accent, "#000000", 0.2);
+      ctx.lineWidth = 0.5; ctx.setLineDash([1.2, 1]);
+      ctx.beginPath();
+      if (skill === "builder") {
+        ctx.moveTo(x - d, y);
+        for (let k = 1; k <= C.BRICKS; k++) { ctx.lineTo(x + d * (k * C.STEP_X - 4), y - k * C.STEP_Y); ctx.lineTo(x + d * k * C.STEP_X, y - k * C.STEP_Y); }
+        ctx.stroke();
+      } else if (skill === "basher") {
+        ctx.rect(d > 0 ? x : x - 48, y - C.LEM_H, 48, C.LEM_H); ctx.stroke();
+        ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x + d * 40, y - 9); ctx.lineTo(x + d * 46, y - 7); ctx.lineTo(x + d * 40, y - 5); ctx.stroke();
+      } else if (skill === "digger") {
+        ctx.rect(x - C.DIG_HALF - 0.5, y, C.DIG_HALF * 2 + 1, 40); ctx.stroke();
+        ctx.setLineDash([]); ctx.beginPath(); ctx.moveTo(x - 2, y + 34); ctx.lineTo(x, y + 38); ctx.lineTo(x + 2, y + 34); ctx.stroke();
+      } else if (skill === "miner") {
+        ctx.moveTo(x, y - C.LEM_H); ctx.lineTo(x + d * 36, y - C.LEM_H + 36); ctx.lineTo(x + d * 36, y + 36); ctx.lineTo(x, y); ctx.closePath(); ctx.stroke();
+      } else if (skill === "blocker") {
+        ctx.rect(x - C.BLOCK_RX - 0.5, y - 15, C.BLOCK_RX * 2 + 1, 15); ctx.stroke();
+        ctx.setLineDash([]); ctx.beginPath();
+        ctx.moveTo(x - 10, y - 9); ctx.lineTo(x - 13, y - 7); ctx.lineTo(x - 10, y - 5);
+        ctx.moveTo(x + 10, y - 9); ctx.lineTo(x + 13, y - 7); ctx.lineTo(x + 10, y - 5); ctx.stroke();
+      } else if (skill === "bomber") {
+        ctx.strokeStyle = T.warn; ctx.arc(x, y - 5, C.BOOM_R, 0, Math.PI * 2); ctx.stroke();
       }
-      // little "moving" chevrons under the window
-      const t = this.frame >> 3;
-      ctx.fillStyle = T.accentDim;
-      if (p.axis === "x") for (let i = 0; i < 3; i++) ctx.fillRect(x + 4 + ((i * 5 + t) % Math.max(6, w - 8)), y + h, 1, 1);
-    }
-
-    drawCrusher(ctx, k, sim) {
-      const T = OL.T;
-      const ph = sim.crusherPhase(k, sim.tick);
-      const headH = 10, topB = k.top + headH, floorB = k.y;
-      let bottom;
-      if (ph.slam) bottom = floorB;
-      else if (ph.c < k.rise) bottom = Math.round(floorB - ((floorB - topB) * ph.c) / k.rise);
-      else bottom = topB;
-      if (ph.warn) bottom += (this.frame >> 1) & 1;          // shudder before the slam
-      const hw = (k.w >> 1) + 3, x0 = k.x - hw, w = hw * 2 + 1, y0 = bottom - headH + 1;
-      // piston
-      ctx.fillStyle = "#3d444f"; ctx.fillRect(k.x - 2, k.top, 5, Math.max(0, y0 - k.top));
-      ctx.fillStyle = "#6c7684"; ctx.fillRect(k.x - 1, k.top, 1, Math.max(0, y0 - k.top));
-      // head
-      ctx.fillStyle = "#14181d"; ctx.fillRect(x0, y0, w, headH);
-      ctx.fillStyle = "#2c323a"; ctx.fillRect(x0 + 1, y0 + 1, w - 2, headH - 2);
-      // hazard stripes
-      for (let i = 0; i < w - 2; i++) {
-        const on = ((i + 0) >> 1) & 1;
-        ctx.fillStyle = on ? T.warn : "#14181d";
-        ctx.fillRect(x0 + 1 + i, y0 + headH - 3, 1, 2);
-      }
-      // OOM label
-      this.tinyText(ctx, "OOM", k.x - 5, y0 + 1, ph.slam ? T.danger : "#8592a1");
-      // warning light
-      const lit = ph.slam || (ph.warn && ((this.frame >> 2) & 1));
-      ctx.fillStyle = lit ? T.danger : OL.mix(T.danger, "#000000", 0.6);
-      ctx.fillRect(x0 + w - 3, y0 + 1, 2, 2);
-      if (lit) { ctx.globalAlpha = 0.25; ctx.fillRect(x0 - 2, y0 - 2, w + 4, headH + 4); ctx.globalAlpha = 1; }
-    }
-
-    tinyText(ctx, str, x, y, col) {
-      const G = { O: ["###", "#.#", "#.#", "#.#", "###"], M: ["#.#", "###", "###", "#.#", "#.#"] };
-      ctx.fillStyle = col;
-      for (const ch of str) {
-        const g = G[ch];
-        if (g) for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r][c] === "#") ctx.fillRect(x + c, y + r, 1, 1);
-        x += 4;
-      }
+      ctx.restore();
     }
 
     bracket(ctx, x, y, w, h, col) {
-      ctx.fillStyle = col;
+      ctx.save();
+      ctx.strokeStyle = col; ctx.lineWidth = 0.6; ctx.lineCap = "round";
+      ctx.shadowColor = col; ctx.shadowBlur = 3;
       const L = 3;
-      ctx.fillRect(x, y, L, 1); ctx.fillRect(x, y, 1, L);
-      ctx.fillRect(x + w - L, y, L, 1); ctx.fillRect(x + w - 1, y, 1, L);
-      ctx.fillRect(x, y + h - 1, L, 1); ctx.fillRect(x, y + h - L, 1, L);
-      ctx.fillRect(x + w - L, y + h - 1, L, 1); ctx.fillRect(x + w - 1, y + h - L, 1, L);
+      ctx.beginPath();
+      ctx.moveTo(x, y + L); ctx.lineTo(x, y); ctx.lineTo(x + L, y);
+      ctx.moveTo(x + w - L, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + L);
+      ctx.moveTo(x, y + h - L); ctx.lineTo(x, y + h); ctx.lineTo(x + L, y + h);
+      ctx.moveTo(x + w - L, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - L);
+      ctx.stroke();
+      ctx.restore();
     }
 
-    drawDigit(ctx, n, x, y) {
-      const g = DIGITS[Math.min(5, n)];
-      if (!g) return;
-      ctx.fillStyle = "#0b120e";
-      ctx.fillRect(x - 1, y - 1, 5, 7);
-      ctx.fillStyle = "#ff6a2b";
-      for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r][c] === "#") ctx.fillRect(x + c, y + r, 1, 1);
+    drawCountdown(ctx, n, x, y) {
+      ctx.save();
+      ctx.font = "bold 6px ui-monospace, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 1.5; ctx.strokeStyle = "rgba(6,10,8,0.9)"; ctx.strokeText(String(n), x, y);
+      ctx.fillStyle = OL.T.warn; ctx.fillText(String(n), x, y);
+      ctx.restore();
     }
+
+    /* draw a lemming pose into a small canvas (toolbar icons) */
+    drawIcon(canvas, skill) { OL.LemmingArt.icon(canvas, skill); }
 
     drawPaused(ctx) {
       ctx.save();
@@ -445,6 +383,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     }
 
     drawMaterials(ctx) {
+      ctx.imageSmoothingEnabled = false;
       if (!this.matCanvas || this.matVersion !== this.sim.terrain.version) {
         const t = this.sim.terrain;
         const c = this.matCanvas || (this.matCanvas = document.createElement("canvas"));
@@ -464,6 +403,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         this.matVersion = t.version;
       }
       ctx.drawImage(this.matCanvas, 0, 0);
+      ctx.imageSmoothingEnabled = true;
     }
 
     drawZones(ctx) {

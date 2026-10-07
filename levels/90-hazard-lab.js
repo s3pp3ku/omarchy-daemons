@@ -51,7 +51,7 @@ OL.registerLevel({
     { m: "dirt", rect: [230, 150, 190, 12] },
     /* lava pit under the bridge */
     { m: "rock", rect: [420, 210, 80, 40] },
-    { m: "lava", rect: [420, 200, 80, 10] },
+    { m: "lava", rect: [420, 156, 80, 54] },
     /* far ledge (F) with a slot the bridge slides into */
     { m: "rock", rect: [500, 150, 180, 100] },
     { m: "rock", rect: [680, 158, 20, 92] },          // step down: no climbing back toward the lava

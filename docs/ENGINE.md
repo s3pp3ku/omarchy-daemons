@@ -10,10 +10,10 @@ js/core/sim.js        deterministic lemming simulation + replays     (DOM-free)
 js/core/levels.js     level / solution registry                      (DOM-free)
 js/gfx/palette.js     lemming colours
 js/gfx/theme.js       theme palettes (UI + neon linework + scenery + backdrop)
-js/gfx/sprites.js     lemming pixel art (generated at startup)
-js/gfx/terrain-render.js  terrain textures, animated fluids, neon glow
-js/gfx/scenery.js     entrance hatch, exit gate, parallax backdrop
-js/gfx/renderer.js    camera, integer zoom, particles, minimap, debug overlays
+js/gfx/lemming.js     vector lemmings (pose-based, smooth at any zoom)
+js/gfx/terrain-render.js  hi-res terrain (anti-aliased edges, sub-pixel textures), live fluids, glow
+js/gfx/scenery.js     vector hatch, gate, mark, mechanisms; parallax backdrop
+js/gfx/renderer.js    camera, smooth zoom, particles, skill preview, minimap, debug overlays
 js/audio.js           procedural music + effects (WebAudio)
 js/main.js            screens, input, loop, HUD, debug panel
 levels/*.js           level data (one file per level)
@@ -23,6 +23,16 @@ legacy/               the original prototype, untouched
 ```
 
 The three `js/core` files run unchanged in node (`tools/load.js`). That lets `tools/verify.js` replay solutions under exactly the physics the browser uses.
+
+## Rendering
+Physics stays on the 1-pixel material map; the picture does not.
+- Terrain is rendered at **S sub-pixels per world pixel** (S = 2–4, picked from the zoom). Edges follow a smooth contour (a bilinear solid field with a signed-distance estimate), so digs, slopes and stairs look rounded and anti-aliased. Textures (soil noise, pebbles, copper traces, vias, rivets, chevrons) are evaluated per sub-pixel.
+- The terrain is split into 128 px tiles, so a dig or bash re-renders and re-uploads only the tiles it touches.
+- Grass only grows on the level's original surfaces, so freshly dug soil stays bare.
+- Fluids are drawn live every frame from collected rectangles, with moving surfaces, bubbles and shimmer.
+- Lemmings, hatch, gate, mark, crusher, platforms, particles and the hover bracket are vector drawings.
+- The zoom fits the window height exactly (any ratio); `Z`/`X` zoom out/in, `0` refits.
+- Glow is a cheap blur: emissive pixels averaged down 4× and scaled back up additively.
 
 ## World and timing
 - 1 world pixel = 1 terrain cell. Each pixel holds one material.
