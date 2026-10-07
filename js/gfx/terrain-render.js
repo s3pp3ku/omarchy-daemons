@@ -108,6 +108,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         }
       }
       this.fluids = [];
+      this.board = OL.buildBoard(doc, terrain, S, OL.T);
       this.renderRect(0, 0, W - 1, H - 1);
       this.collectFluids();
     }
@@ -267,26 +268,10 @@ var OL = globalThis.OL || (globalThis.OL = {});
           return false;
         }
         case M.ROCK: {
-          /* circuit board */
-          const lx = fx - Math.floor(fx / 8) * 8, ly = fy - Math.floor(fy / 8) * 8, hc = hash(Math.floor(fx / 8), Math.floor(fy / 8));
-          let c = lerp3(C.board, C.board2, vnoise(fx * 0.5, fy * 0.5) * 0.8);
-          const tw = 0.42;
-          if ((hc & 1) && Math.abs(ly - 3.5) < tw) c = C.copper;
-          if ((hc & 2) && Math.abs(lx - 3.5) < tw) c = C.copper;
-          if ((hc & 4) && Math.abs(ly - lx) < tw * 1.2 && lx > 3.5) c = C.copper;      // a few 45° traces
-          if ((hc & 28) === 28) {
-            const r = Math.hypot(lx - 3.5, ly - 3.5);
-            if (r < 1.25) c = r < 0.5 ? C.viaHole : C.gold;
-          }
-          const kx = Math.floor(fx / 36), ky = Math.floor(fy / 26);
-          if (hash(kx, ky + 77) % 4 === 0 && depth > 4 && !edge) {
-            const cxl = fx - kx * 36, cyl = fy - ky * 26;
-            if (cxl > 8 && cxl < 26 && cyl > 9.5 && cyl < 16.5) {
-              c = cyl < 10.4 ? C.chipHi : C.chip;
-              if ((cyl < 10.2 || cyl > 15.8) && (cxl % 2) < 0.9) c = C.pin;
-              if (Math.hypot(cxl - 10, cyl - 12) < 0.6) c = C.pin;
-            }
-          }
+          /* circuit board: sampled from the routed board artwork (js/gfx/board.js) */
+          const bd = this.board, S = this.S;
+          const ix = Math.min(bd.w - 1, Math.floor(fx * S)), iy = Math.min(bd.h - 1, Math.floor(fy * S)), bk = (iy * bd.w + ix) * 4;
+          let c = [bd.data[bk], bd.data[bk + 1], bd.data[bk + 2]];
           if (edge && dist < 0.95) c = top ? C.fibreHi : bottom ? C.fibreLo : C.fibre;
           if (above === M.WATER && depth <= 2) c = C.silt;
           if (above === M.LAVA && depth <= 2) c = C.scorch;

@@ -11,6 +11,7 @@ js/core/levels.js     level / solution registry                      (DOM-free)
 js/gfx/palette.js     lemming colours
 js/gfx/theme.js       theme palettes (UI + neon linework + scenery + backdrop)
 js/gfx/lemming.js     vector lemmings (pose-based, smooth at any zoom)
+js/gfx/board.js       routed circuit-board artwork for breakable rock (buses, chips, vias, silkscreen)
 js/gfx/terrain-render.js  hi-res terrain (anti-aliased edges, sub-pixel textures), live fluids, glow
 js/gfx/scenery.js     vector hatch, gate, mark, mechanisms; parallax backdrop
 js/gfx/renderer.js    camera, smooth zoom, particles, skill preview, minimap, debug overlays
@@ -44,7 +45,7 @@ Physics stays on the 1-pixel material map; the picture does not.
 | id | name | solid | breakable | notes |
 |---|---|---|---|---|
 | dirt | grassy soil | ✓ | ✓ | grass is drawn on exposed tops |
-| rock | circuit board (copper traces, vias, chips; tan fibreglass where cut) | ✓ | ✓ | same rules as dirt |
+| rock | circuit board: routed buses with 45° bends, copper pour, chips, gold vias, silkscreen labels; tan fibreglass where cut | ✓ | ✓ | same rules as dirt |
 | metal | system plating | ✓ | ✗ | neon top edges |
 | tech | Omarchy architecture | ✓ | ✗ | circuit panels |
 | brick | builder steps (drawn as circuit-board planks) | ✓ | ✓ | |
