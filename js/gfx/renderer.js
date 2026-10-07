@@ -23,11 +23,14 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.mm = minimap;
       this.mmCtx = minimap ? minimap.getContext("2d") : null;
       this.atlas = OL.Sprites.buildAtlas(document);
-      this.hatch = [0, 1, 2, 3].map((f) => S.drawHatch(document, f));
+      this.hatch = [0, 1, 2, 3].map((f) => S.drawHatch(document, f, false));
+      this.hatchBlink = [0, 1, 2, 3].map((f) => S.drawHatch(document, f, true));
       this.gate = [0, 1, 2, 3, 4, 5].map((f) => S.drawGate(document, f));
       this.zoom = 3;
       this.cam = { x: 0, y: 0 };
       this.particles = [];
+      this.flashes = [];
+      this.shake = 0;
       this.frame = 0;
       this.hover = null;
       this.debug = { materials: false, labels: false, zones: false };
@@ -120,34 +123,67 @@ var OL = globalThis.OL || (globalThis.OL = {});
     }
 
     /* ---------------------------------------------------------- particles */
-    burst(x, y, n, colors, speed, up, life) {
+    burst(x, y, n, colors, speed, up, life, opt) {
+      opt = opt || {};
       for (let i = 0; i < n; i++) {
-        const a = Math.random() * Math.PI * 2;
+        let a = Math.random() * Math.PI * 2;
+        if (opt.cone !== undefined) a = opt.cone + (Math.random() - 0.5) * (opt.spread || 1.4);
         const s = (0.3 + Math.random()) * speed;
+        const L = (life || 30) * (0.6 + Math.random() * 0.6);
         this.particles.push({
-          x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - (up || 0),
-          life: (life || 30) * (0.6 + Math.random() * 0.6),
+          x: x + (Math.random() - 0.5) * (opt.jitter || 0), y,
+          vx: Math.cos(a) * s, vy: Math.sin(a) * s - (up || 0),
+          life: L, max: L, g: opt.g === undefined ? 0.08 : opt.g,
           c: colors[(Math.random() * colors.length) | 0],
+          size: opt.big && Math.random() < opt.big ? 2 : 1,
+          fade: !!opt.fade, glow: !!opt.glow,
         });
       }
     }
 
+    /* debris colours per material (what is being broken) */
+    debris(mat) {
+      const D = {
+        [M.DIRT]: ["#7b5036", "#a07650", "#5b3a28", "#8a5c3d"],
+        [M.ROCK]: ["#575d74", "#6e7592", "#3f4356", "#2c2f3d"],
+        [M.BRICK]: ["#0f5a3c", "#7dffd4", "#f0c35a"],
+        [M.OW_L]: ["#352950", "#9b6bff", "#c9a8ff"],
+        [M.OW_R]: ["#352950", "#9b6bff", "#c9a8ff"],
+      };
+      return D[mat] || D[M.DIRT];
+    }
+
+    /* dig / bash / mine: chunky debris + a dust puff + the odd spark */
+    chips(e, n, cone, spread, speed) {
+      if (!e.mat) return;                 // swung at air: nothing to throw
+      const cols = this.debris(e.mat);
+      this.burst(e.x, e.y, n, cols, speed, 0.6, 34, { cone, spread, big: 0.45, jitter: 6 });
+      this.burst(e.x, e.y, 2, ["rgba(170,180,175,0.35)", "rgba(120,130,125,0.3)"], 0.35, 0.25, 26, { g: -0.004, fade: true, big: 1, jitter: 8 });
+      if (Math.random() < 0.3) this.burst(e.x, e.y, 2, ["#ffe27a", "#ffffff"], 1.6, 0.6, 10, { cone, spread: 1, g: 0.02 });
+    }
+
     onEvents(events) {
       for (const e of events) {
+        const back = e.dir > 0 ? Math.PI : 0;          // debris flies back toward the worker
         switch (e.type) {
-          case "dig": this.burst(e.x, e.y, 3, ["#7b5036", "#a07650", "#5b3a28"], 0.9, 0.6); break;
-          case "bash": this.burst(e.x, e.y, 3, ["#7b5036", "#a07650", "#575d74"], 1.0, 0.4); break;
-          case "mine": this.burst(e.x, e.y, 4, ["#7b5036", "#a07650", "#ffe27a"], 1.0, 0.5); break;
-          case "brick": this.burst(e.x, e.y, 2, ["#f3b765", "#d4883a"], 0.5, 0.3, 14); break;
-          case "clink": this.burst(e.x, e.y, 8, ["#ffe27a", "#ffffff", "#22d3ee"], 1.6, 0.4, 16); break;
-          case "boom": this.burst(e.x, e.y, 46, ["#ffe27a", "#ff6a2b", "#ff3b4e", "#7b5036", "#3fd46c", "#9a86f0"], 2.6, 0.8, 50); break;
-          case "die":
-            if (e.cause === "burn") this.burst(e.x, e.y - 4, 14, ["#ffe27a", "#ff6a2b", "#2b2a3a"], 1.0, 1.4, 40);
-            else if (e.cause === "drown") this.burst(e.x, e.y, 12, ["#c8fbff", "#6fe3ff", "#2fb3e8"], 1.2, 1.6, 30);
-            else if (e.cause === "splat") this.burst(e.x, e.y, 10, ["#3fd46c", "#9a86f0", "#3c5ee0"], 1.4, 0.8, 26);
+          case "dig": this.chips(e, 5, -Math.PI / 2, 2.2, 1.5); break;
+          case "bash": this.chips(e, 8, back - (e.dir > 0 ? -0.5 : 0.5), 1.3, 1.8); break;
+          case "mine": this.chips(e, 9, back - (e.dir > 0 ? -0.7 : 0.7), 1.4, 1.8); break;
+          case "brick": this.burst(e.x, e.y, 3, ["#7dffd4", "#2ee59d", "#f0c35a"], 0.6, 0.4, 16, { glow: true }); break;
+          case "clink": this.burst(e.x, e.y, 16, ["#ffe27a", "#ffffff", "#22d3ee"], 2.2, 0.6, 18, { glow: true, g: 0.05 }); this.shake = Math.max(this.shake || 0, 3); break;
+          case "boom":
+            this.burst(e.x, e.y, 70, ["#ffe27a", "#ff6a2b", "#ff3b4e", "#7b5036", "#3fd46c", "#9a86f0"], 3.2, 0.9, 60, { big: 0.5 });
+            this.burst(e.x, e.y, 14, ["rgba(200,200,190,0.35)"], 0.8, 0.3, 50, { g: -0.01, fade: true, big: 1 });
+            this.flashes.push({ x: e.x, y: e.y, t: 0 });
+            this.shake = Math.max(this.shake || 0, 8);
             break;
-          case "exit": this.burst(e.x, e.y - 10, 12, ["#b9ffe0", "#2ee59d", "#22d3ee"], 0.7, 1.2, 40); break;
-          case "assign": this.burst(e.x, e.y, 6, ["#2ee59d", "#b9ffe0"], 0.9, 0.2, 14); break;
+          case "die":
+            if (e.cause === "burn") this.burst(e.x, e.y - 4, 18, ["#ffe27a", "#ff6a2b", "#2b2a3a"], 1.0, 1.4, 40, { glow: true });
+            else if (e.cause === "drown") this.burst(e.x, e.y, 16, ["#c8fbff", "#6fe3ff", "#2fb3e8"], 1.3, 1.7, 30);
+            else if (e.cause === "splat") this.burst(e.x, e.y, 14, ["#3fd46c", "#9a86f0", "#3c5ee0"], 1.5, 0.9, 26, { big: 0.4 });
+            break;
+          case "exit": this.burst(e.x, e.y - 10, 16, ["#b9ffe0", "#2ee59d", "#22d3ee"], 0.8, 1.3, 44, { glow: true, g: 0.01 }); break;
+          case "assign": this.burst(e.x, e.y, 8, ["#2ee59d", "#b9ffe0"], 1.0, 0.2, 16, { glow: true }); break;
         }
       }
     }
@@ -155,10 +191,14 @@ var OL = globalThis.OL || (globalThis.OL = {});
     stepParticles() {
       const t = this.sim && this.sim.terrain;
       for (const p of this.particles) {
-        p.vy += 0.08; p.x += p.vx; p.y += p.vy; p.life--;
+        p.vy += p.g; p.x += p.vx; p.y += p.vy; p.life--;
         if (t && p.vy > 0 && t.solid(p.x | 0, p.y | 0)) { p.vy *= -0.3; p.vx *= 0.6; p.y -= 1; }
       }
-      if (this.particles.length > 600) this.particles.splice(0, this.particles.length - 600);
+      if (this.particles.length > 1800) this.particles.splice(0, this.particles.length - 1800);
+      for (const f of this.flashes) f.t++;
+      this.flashes = this.flashes.filter((f) => f.t < 14);
+      if (this.shake > 0) this.shake *= 0.82;
+      if (this.shake < 0.3) this.shake = 0;
       this.particles = this.particles.filter((p) => p.life > 0);
     }
 
@@ -200,7 +240,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
       const cx = this.cam.x, cy = this.cam.y;
       const W = sim.W, H = sim.H;
       // world -> screen: s = (w - cam) * z
-      const vx = Math.round(-cx * z), vy = Math.round(-cy * z);
+      const sh = this.shake ? (Math.random() - 0.5) * this.shake * z * 0.5 : 0;
+      const vx = Math.round(-cx * z + sh), vy = Math.round(-cy * z + sh * 0.6);
 
       /* above the world's ceiling: solid dark rock band */
       if (vy > 0) { ctx.fillStyle = "#0c0e14"; ctx.fillRect(0, 0, this.cv.width, vy); ctx.fillStyle = "#1a8f63"; ctx.fillRect(0, vy - 2, this.cv.width, 1); }
@@ -221,7 +262,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       // entrance hatches (behind lemmings)
       const openF = Math.min(3, Math.max(0, Math.floor((sim.tick - (C.OPEN_DELAY - 16)) / 4)));
       for (const e of sim.entrances) {
-        ctx.drawImage(this.hatch[sim.tick < C.OPEN_DELAY - 16 ? 0 : openF], e.x - S.HATCH.AX, e.y - S.HATCH.AY);
+        ctx.drawImage(((this.frame >> 4) & 1 ? this.hatchBlink : this.hatch)[sim.tick < C.OPEN_DELAY - 16 ? 0 : openF], e.x - S.HATCH.AX, e.y - S.HATCH.AY);
       }
       for (const e of sim.exits) {
         ctx.drawImage(this.gate[(this.frame >> 3) % 6], e.x - S.GATE.AX, e.y - S.GATE.AY);
@@ -284,9 +325,20 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
       /* particles */
       for (const p of this.particles) {
+        ctx.globalAlpha = p.fade ? Math.max(0, p.life / p.max) : 1;
         ctx.fillStyle = p.c;
-        ctx.fillRect(Math.round(p.x), Math.round(p.y), 1, 1);
+        ctx.fillRect(Math.round(p.x), Math.round(p.y), p.size, p.size);
       }
+      ctx.globalAlpha = 1;
+      /* explosion flash rings */
+      for (const f of this.flashes) {
+        const r = 4 + f.t * 2.2;
+        ctx.globalAlpha = 1 - f.t / 14;
+        ctx.strokeStyle = f.t < 4 ? "#fff6c8" : "#ff6a2b";
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
 
       /* debug overlays */
       if (this.debug.zones) this.drawZones(ctx);

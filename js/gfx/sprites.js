@@ -16,7 +16,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     S: P.skin, s: P.skinShade, E: P.eye,
     P: P.shirt, p: P.shirtShade,
     B: P.pants, b: P.pantsShade, F: P.shoe,
-    O: P.brick, o: P.brickShade,
+    O: "#7dffd4", o: "#0f5a3c", Q: "#f0c35a",
     T: P.steel, t: P.steelShade, W: P.wood,
     K: P.outline, R: "#ff4d5e", r: "#b3263a", Y: "#ffe27a", w: "#ffffff",
     N: P.neon, n: P.neonDim, A: "#ff8a3d",
@@ -146,14 +146,14 @@ var OL = globalThis.OL || (globalThis.OL = {});
   ];
 
   /* builder: carry a plank, crouch, lay it in front */
-  const PLANK = g(1, -6, ["OOOOO", "ooooo"]);
+  const PLANK = g(1, -6, ["OOOOO", "oQooQ"]);
   ANIM.build = [
     { legs: "stand", arms: [g(1, -7, ["PS"]), PLANK] },
-    { legs: "stand", bob: 1, arms: [g(1, -6, ["PS"]), g(2, -4, ["OOOOO", "ooooo"])] },
-    { legs: "kneel", bob: 2, arms: [g(1, -5, ["PPS"]), g(3, -2, ["OOOOO", "ooooo"])] },
+    { legs: "stand", bob: 1, arms: [g(1, -6, ["PS"]), g(2, -4, ["OOOOO", "oQooQ"])] },
+    { legs: "kneel", bob: 2, arms: [g(1, -5, ["PPS"]), g(3, -2, ["OOOOO", "oQooQ"])] },
     { legs: "kneel", bob: 2, arms: [g(1, -5, ["PPS"])] },
     { legs: "stand", bob: 1, arms: [g(1, -6, ["PS"])] },
-    { legs: "stand", arms: [g(-3, -7, ["Sp"]), g(-6, -9, ["OOOO", "oooo"])] },
+    { legs: "stand", arms: [g(-3, -7, ["Sp"]), g(-6, -9, ["OOOO", "oQoQ"])] },
   ];
 
   /* digger: shovel straight down, both hands */

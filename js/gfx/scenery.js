@@ -23,78 +23,99 @@ var OL = globalThis.OL || (globalThis.OL = {});
     if (edge) { const half = Math.floor(((h - 1) * (h + 1)) / h / 2 + (h - 1) / 2); R(ctx, edge, cx - half, top + h - 1, half * 2 + 1, 1); }
   }
 
+  /* ---------------------------------------------------------------- mark
+     Original "prompt mark": a neon triangle with a terminal cursor inside.
+     Used on the hatch, the gate and the title. Swap it here to rebrand. */
+  function drawMark(ctx, cx, top, h, col, fill, cursorOn) {
+    for (let r = 0; r < h; r++) {
+      const half = Math.floor((r * 0.62) + 0.5);
+      if (fill) R(ctx, fill, cx - half, top + r, half * 2 + 1, 1);
+      R(ctx, col, cx - half, top + r, 1, 1);
+      R(ctx, col, cx + half, top + r, 1, 1);
+      if (r === h - 1) R(ctx, col, cx - half, top + r, half * 2 + 1, 1);
+    }
+    if (cursorOn) {
+      const w = Math.max(2, Math.floor(h / 3));
+      R(ctx, "#b9ffe0", cx - (w >> 1), top + h - 3, w, 1);
+    }
+  }
+
+  /* 3x5 pixel glyphs for tiny in-world text */
+  const GLYPH = {
+    "$": [".#.", "##.", ".#.", ".##", ".#."], ">": ["#..", ".#.", "..#", ".#.", "#.."],
+    "_": ["...", "...", "...", "...", "###"], "~": ["...", ".#.", "#.#", "...", "..."], "/": ["..#", "..#", ".#.", "#..", "#.."],
+  };
+  function text(ctx, str, x, y, col) {
+    for (const ch of str) {
+      const g = GLYPH[ch];
+      if (g) for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r][c] === "#") R(ctx, col, x + c, y + r, 1, 1);
+      x += 4;
+    }
+  }
+
+  /* a tiled window: rounded frame, neon border, title bar with workspace dots */
+  function tileWin(ctx, x, y, w, h, active) {
+    const border = "#2ee59d", bar = "#0c2219";
+    R(ctx, "#040908", x + 1, y + 1, w - 2, h - 2);
+    R(ctx, border, x + 2, y, w - 4, 1); R(ctx, border, x + 2, y + h - 1, w - 4, 1);
+    R(ctx, border, x, y + 2, 1, h - 4); R(ctx, border, x + w - 1, y + 2, 1, h - 4);
+    R(ctx, border, x + 1, y + 1, 1, 1); R(ctx, border, x + w - 2, y + 1, 1, 1);
+    R(ctx, border, x + 1, y + h - 2, 1, 1); R(ctx, border, x + w - 2, y + h - 2, 1, 1);
+    R(ctx, bar, x + 1, y + 1, w - 2, 6);
+    R(ctx, "#1a8f63", x + 1, y + 7, w - 2, 1);
+    // workspace dots (one active), like a bar
+    for (let i = 0; i < 3; i++) R(ctx, i === active ? "#b9ffe0" : "#1f5a45", x + w - 6 - i * 4, y + 3, 2, 2);
+  }
+
   /* ------------------------------------------------------------ entrance
-     Stone arch with a glowing triangle keystone. Frames: 0 closed .. 3 open.
-     Anchor: (AX, AY) is the spawn point = bottom centre of the opening. */
-  const HATCH = { W: 36, H: 34, AX: 18, AY: 29 };
-  function drawHatch(doc, frame) {
+     A floating terminal window; its bottom edge splits open like a trapdoor.
+     Frames: 0 closed .. 3 open. (AX, AY) = spawn point. */
+  const HATCH = { W: 40, H: 46, AX: 20, AY: 41 };
+  function drawHatch(doc, frame, blink) {
     const c = canvas(doc, HATCH.W, HATCH.H), x = c.getContext("2d");
-    const stone = ["#4e5469", "#575d74", "#454a5e"];
-    // interior
-    R(x, "#04060a", 7, 10, 22, 19);
-    const g = x.createLinearGradient(0, 10, 0, 29);
-    g.addColorStop(0, "rgba(46,229,157,0.05)"); g.addColorStop(1, "rgba(46,229,157,0.22)");
-    x.fillStyle = g; x.fillRect(7, 10, 22, 19);
-    // pillars + lintel, stone blocks
-    const block = (bx, by, bw, bh) => {
-      R(x, "#16161f", bx, by, bw, bh);
-      R(x, stone[hash(bx, by) % 3], bx + 1, by + 1, bw - 1, bh - 1);
-      R(x, "#6e7592", bx + 1, by + 1, bw - 1, 1);
-      R(x, "#2c2f3d", bx + 1, by + bh - 1, bw - 1, 1);
-    };
-    for (let by = 10; by < 32; by += 5) { block(0, by, 7, 5); block(29, by, 7, 5); }
-    block(0, 6, 12, 5); block(12, 6, 12, 5); block(24, 6, 12, 5);
-    // keystone triangle
-    tri(x, 18, 0, 9, "#0f3b2a", "#2ee59d");
-    R(x, "#b9ffe0", 18, 3, 1, 2);
-    // trapdoor leaves
-    const lc = "#2c323a", le = "#4a5461";
-    if (frame === 0) { R(x, lc, 7, 27, 22, 2); R(x, le, 7, 27, 22, 1); R(x, "#14181d", 17, 27, 2, 2); }
-    else if (frame === 1) { R(x, lc, 7, 27, 9, 3); R(x, lc, 20, 27, 9, 3); R(x, le, 7, 27, 9, 1); R(x, le, 20, 27, 9, 1); }
-    else if (frame === 2) { for (let i = 0; i < 7; i++) { R(x, lc, 7 + Math.floor(i / 2), 27 + i, 2, 1); R(x, lc, 27 - Math.floor(i / 2), 27 + i, 2, 1); } }
-    else { R(x, lc, 7, 27, 2, 7); R(x, lc, 27, 27, 2, 7); R(x, le, 7, 27, 1, 7); R(x, le, 28, 27, 1, 7); }
-    // floor ledge of the arch
-    R(x, "#2ee59d", 0, 32, 7, 1); R(x, "#2ee59d", 29, 32, 7, 1);
+    drawMark(x, 20, 1, 10, "#2ee59d", "#0b2a1f", false);
+    tileWin(x, 1, 11, 38, 31, 0);
+    // terminal body
+    const g = x.createLinearGradient(0, 19, 0, 41);
+    g.addColorStop(0, "rgba(46,229,157,0.03)"); g.addColorStop(1, "rgba(46,229,157,0.22)");
+    x.fillStyle = g; x.fillRect(2, 19, 36, 22);
+    text(x, ">", 5, 22, "#2ee59d");
+    if (blink) R(x, "#b9ffe0", 10, 22, 3, 5);
+    // trapdoor: the window's bottom border
+    const lc = "#2ee59d", dk = "#1a8f63", y0 = 41;
+    R(x, "#040908", 3, y0, 34, 1);
+    if (frame === 0) R(x, lc, 3, y0, 34, 1);
+    else if (frame === 1) { R(x, lc, 3, y0, 14, 1); R(x, lc, 23, y0, 14, 1); }
+    else if (frame === 2) { for (let i = 0; i < 6; i++) { R(x, lc, 3 + i * 2, y0 + Math.floor(i / 2), 2, 1); R(x, lc, 35 - i * 2, y0 + Math.floor(i / 2), 2, 1); } }
+    else { R(x, lc, 3, y0, 2, 5); R(x, lc, 35, y0, 2, 5); R(x, dk, 5, y0, 1, 4); R(x, dk, 34, y0, 1, 4); }
     return c;
   }
 
   /* ---------------------------------------------------------------- exit
-     Metal gate, neon edges, Omarchy triangle on the lintel, animated portal.
-     Anchor: (AX, AY) = the exit's floor point. */
-  const GATE = { W: 34, H: 38, AX: 17, AY: 37 };
+     A tall window-portal crowned by the prompt mark.
+     (AX, AY) = the exit's floor point. */
+  const GATE = { W: 38, H: 50, AX: 19, AY: 49 };
   function drawGate(doc, frame) {
     const c = canvas(doc, GATE.W, GATE.H), x = c.getContext("2d");
+    // crown: big mark with halo
+    drawMark(x, 19, 1, 14, "#2ee59d", "#0b2a1f", frame % 3 !== 2);
+    // frame
+    tileWin(x, 3, 15, 32, 35, (frame >> 1) % 3);
     // portal
-    const g = x.createLinearGradient(0, 12, 0, 37);
-    const p = 0.55 + 0.15 * Math.sin((frame / 6) * Math.PI * 2);
-    g.addColorStop(0, `rgba(34,211,238,${0.25 * p})`);
-    g.addColorStop(0.6, `rgba(46,229,157,${0.55 * p})`);
-    g.addColorStop(1, `rgba(185,255,224,${0.9 * p})`);
-    R(x, "#03100c", 6, 12, 22, 25);
-    x.fillStyle = g; x.fillRect(6, 12, 22, 25);
-    for (let yy = 12; yy < 37; yy += 2) { x.fillStyle = "rgba(0,0,0,0.18)"; x.fillRect(6, yy + (frame & 1), 22, 1); }
-    // rising motes
-    for (let i = 0; i < 6; i++) {
-      const mx = 8 + ((i * 7 + frame * 3) % 18), my = 36 - ((i * 11 + frame * 4) % 22);
+    const p = 0.6 + 0.2 * Math.sin((frame / 6) * Math.PI * 2);
+    const g = x.createLinearGradient(0, 23, 0, 48);
+    g.addColorStop(0, `rgba(34,211,238,${0.3 * p})`);
+    g.addColorStop(0.55, `rgba(46,229,157,${0.75 * p})`);
+    g.addColorStop(1, `rgba(185,255,224,${0.95 * p})`);
+    x.fillStyle = g; x.fillRect(4, 23, 30, 26);
+    for (let yy = 23; yy < 49; yy += 2) { x.fillStyle = "rgba(0,0,0,0.2)"; x.fillRect(4, yy + (frame & 1), 30, 1); }
+    for (let i = 0; i < 7; i++) {
+      const mx = 6 + ((i * 7 + frame * 3) % 26), my = 47 - ((i * 11 + frame * 4) % 22);
       R(x, "#b9ffe0", mx, my, 1, 1);
     }
-    // pillars
-    const metal = (bx, by, bw, bh) => {
-      R(x, "#14181d", bx, by, bw, bh);
-      R(x, "#2c323a", bx + 1, by + 1, bw - 2, bh - 2);
-      R(x, "#4a5461", bx + 1, by + 1, bw - 2, 1);
-    };
-    metal(0, 10, 6, 28); metal(28, 10, 6, 28);
-    R(x, "#2ee59d", 5, 12, 1, 25); R(x, "#2ee59d", 28, 12, 1, 25);
-    R(x, "#8592a1", 2, 15, 1, 1); R(x, "#8592a1", 2, 31, 1, 1); R(x, "#8592a1", 31, 15, 1, 1); R(x, "#8592a1", 31, 31, 1, 1);
-    // lintel
-    metal(0, 8, 34, 5);
-    R(x, "#2ee59d", 1, 12, 32, 1);
-    // triangle crest
-    tri(x, 17, 0, 9, "#0f3b2a", "#2ee59d");
-    R(x, frame % 2 ? "#b9ffe0" : "#2ee59d", 17, 3, 1, 3);
+    text(x, ">_", 7, 17, frame & 2 ? "#b9ffe0" : "#2ee59d");
     // threshold
-    R(x, "#b9ffe0", 6, 37, 22, 1);
+    R(x, "#b9ffe0", 4, 49, 30, 1);
     return c;
   }
 
@@ -170,5 +191,5 @@ var OL = globalThis.OL || (globalThis.OL = {});
     return { layers };
   }
 
-  OL.Scenery = { HATCH, GATE, drawHatch, drawGate, buildBackdrop, tri };
+  OL.Scenery = { HATCH, GATE, drawHatch, drawGate, drawMark, buildBackdrop, tri };
 })();

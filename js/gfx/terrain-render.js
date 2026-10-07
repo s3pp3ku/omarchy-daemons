@@ -34,6 +34,16 @@ var OL = globalThis.OL || (globalThis.OL = {});
     neonHot: rgb("#b9ffe0"),
     neonSide: rgb("#1a8f63"),
     cyan: rgb("#22d3ee"),
+    pcb: rgb("#0f5a3c"),
+    pcbDark: rgb("#08321f"),
+    pcbLine: rgb("#167a52"),
+    pcbTrace: rgb("#7dffd4"),
+    pcbPad: rgb("#f0c35a"),
+    silt: rgb("#24383a"),
+    siltDark: rgb("#18282a"),
+    scorch: rgb("#2a1512"),
+    scorchDark: rgb("#1a0c0a"),
+    ember: rgb("#ff6a2b"),
     plank: rgb("#d4883a"),
     plankHi: rgb("#f3b765"),
     plankLo: rgb("#8a4f1c"),
@@ -138,10 +148,13 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
           switch (mat) {
             case M.DIRT: {
-              let depth = 0;
-              for (let d = 1; d <= 5; d++) { if (open(at(x, y - d))) { depth = d; break; } }
+              /* what sits on top of this soil? grass only grows under open air */
+              let depth = 0, above = M.AIR;
+              for (let d = 1; d <= 5; d++) { const v = at(x, y - d); if (v !== M.DIRT) { depth = d; above = v; break; } }
               const gd = 2 + (hash(x, 3) % 3);
-              if (depth && depth <= gd) c = C.grass[Math.min(3, depth - 1)];
+              if (depth && above === M.AIR && depth <= gd) c = C.grass[Math.min(3, depth - 1)];
+              else if (depth && depth <= 3 && above === M.WATER) c = (h & 3) ? C.silt : C.siltDark;
+              else if (depth && depth <= 3 && above === M.LAVA) c = h > 200 ? C.ember : (h & 1) ? C.scorch : C.scorchDark;
               else {
                 const n = clump(x, y, 5) * 0.6 + h * 0.4;
                 c = C.dirt[Math.min(3, Math.floor(n / 64))];
@@ -162,7 +175,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
                 else if (by === 8 || bx === 17) c = C.rockLo;
                 else if (h > 250) c = C.rockLo;
               }
-              if (oUp) c = (hash(x, 11) % 4 === 0) ? C.moss : C.rockHi;
+              if (up === M.AIR) c = (hash(x, 11) % 4 === 0) ? C.moss : C.rockHi;
+              else if (oUp) c = up === M.LAVA ? C.scorch : C.siltDark;
               else if (oL || oR || oDn) c = C.rockLo;
               break;
             }
@@ -191,10 +205,12 @@ var OL = globalThis.OL || (globalThis.OL = {});
               break;
             }
             case M.BRICK: {
-              c = C.plank;
-              if (oUp) c = C.plankHi;
-              else if (oDn) c = C.plankLo;
-              else if (x % 8 === 0) c = C.plankJoint;
+              /* builder steps are printed-circuit planks: bright trace on top, gold pads */
+              c = C.pcb;
+              if (oUp) { c = C.pcbTrace; e = C.pcbTrace; }
+              else if (oDn) c = C.pcbDark;
+              else if (hash(x, 5) % 7 === 0) c = C.pcbPad;
+              else if (x % 4 === 0) c = C.pcbLine;
               break;
             }
             case M.OW_L: case M.OW_R: {
@@ -265,7 +281,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         case M.ROCK: return [84, 90, 112];
         case M.METAL: return [70, 80, 92];
         case M.TECH: return [30, 120, 90];
-        case M.BRICK: return [212, 136, 58];
+        case M.BRICK: return [125, 255, 212];
         case M.LAVA: return [255, 106, 43];
         case M.WATER: return [47, 179, 232];
         case M.OW_L: case M.OW_R: return [120, 80, 200];

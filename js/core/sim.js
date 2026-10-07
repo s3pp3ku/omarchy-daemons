@@ -114,6 +114,15 @@ var OL = globalThis.OL || (globalThis.OL = {});
     get timeLeft() { return Math.max(0, this.timeLimit - this.tick); }
     lem(id) { return this.lems.find((l) => l.id === id); }
 
+    /* which breakable material is in this pixel list? (for debris colour only) */
+    matOf(px, dir) {
+      for (let i = 0; i < px.length; i += 2) {
+        const m = this.terrain.get(px[i], px[i + 1]);
+        if (Terrain.removable(m, dir)) return m;
+      }
+      return 0;
+    }
+
     emit(type, x, y, extra) { this.events.push(Object.assign({ type, x, y }, extra || {})); }
 
     /* ------------------------------------------------------------ actions */
@@ -343,9 +352,10 @@ var OL = globalThis.OL || (globalThis.OL = {});
       for (let x = l.x - C.DIG_HALF; x <= l.x + C.DIG_HALF; x++) px.push(x, row);
       if (t.anyBlocking(px, 0)) { this.setState(l, ST.WALK); this.emit("clink", l.x, row); return; }
       if (!t.anyRemovable(px, 0)) { this.startFall(l); return; }
+      const mat = this.matOf(px, 0);
       t.removePixels(px, 0);
       l.y++;
-      if (l.t % (C.DIG_PERIOD * 3) === 0) this.emit("dig", l.x, row);
+      this.emit("dig", l.x, row, { mat, dir: l.dir });
       if (!t.solid(l.x, l.y + 1)) {
         /* through the floor: is there anything left under the hole edge? */
         let any = false;
@@ -373,8 +383,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
       const area = this.bashArea(l);
       if (t.anyBlocking(area, d)) { this.setState(l, ST.WALK); this.emit("clink", l.x + d * 3, l.y - 6); return; }
       if (!t.anyRemovable(look, d)) { this.setState(l, ST.WALK); return; }
+      const mat = this.matOf(area, d);
       t.removePixels(area, d);
-      this.emit("bash", l.x + d * 4, l.y - 6);
+      this.emit("bash", l.x + d * 4, l.y - 6, { mat, dir: d });
       for (let i = 0; i < C.BASH_ADVANCE; i++) {
         l.x += d;
         if (!t.solid(l.x, l.y + 1)) {
@@ -397,8 +408,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
         for (let y = top; y <= bot; y++) px.push(l.x + d * c, y);
       }
       if (t.anyBlocking(px, d)) { this.setState(l, ST.WALK); this.emit("clink", l.x + d * 3, l.y); return; }
+      const mat = this.matOf(px, d);
       t.removePixels(px, d);
-      this.emit("mine", l.x + d * 3, l.y);
+      this.emit("mine", l.x + d * 4, l.y - 2, { mat, dir: d });
       l.x += d * a; l.y += a;
       if (!t.solid(l.x, l.y + 1)) this.startFall(l);
     }

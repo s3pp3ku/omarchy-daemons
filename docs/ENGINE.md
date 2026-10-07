@@ -36,7 +36,7 @@ The three `js/core` files run unchanged in node (`tools/load.js`). That lets `to
 | rock | stone-brick ruins | ✓ | ✓ | same rules as dirt, heavier look |
 | metal | system plating | ✓ | ✗ | neon top edges |
 | tech | Omarchy architecture | ✓ | ✗ | circuit panels |
-| brick | builder steps | ✓ | ✓ | |
+| brick | builder steps (drawn as circuit-board planks) | ✓ | ✓ | |
 | oneway-left/right | purple chevrons | ✓ | only in the arrow's direction | digging always works |
 | lava | | ✗ | — | lethal on contact |
 | water / coolant | | ✗ | — | lethal on contact |
