@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.s3pp3ku.omarchy-daemons",
+  "name": "Omarchy Daemons",
+  "version": "1.0.0",
+  "author": "s3pp3ku",
+  "license": "MIT",
+  "description": "Omarchy Daemons: a twenty-level crowd-guiding puzzle game. Opens as a web app from a bar button; no network, no sudo.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Daemons.qml"
+  },
+  "barWidget": {
+    "displayName": "Daemons",
+    "category": "Games",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
