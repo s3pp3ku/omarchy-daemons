@@ -34,6 +34,21 @@ Prefer the menu? Add an entry to `~/.config/omarchy/extensions/omarchy-menu.json
 }
 ```
 
+### Remove
+
+```sh
+omarchy plugin remove io.github.s3pp3ku.omarchy-daemons
+```
+
+Your progress lives in the app's browser storage, not in the plugin folder, and
+the plugin never touches your other configuration. If you added the menu entry
+above, delete it from `omarchy-menu.jsonc` too.
+
+### Requirements
+
+Omarchy with the shell plugin system and Chromium (the default). Nothing else:
+no packages, no services, no network.
+
 ### Without Omarchy
 
 Open `index.html` in any Chromium-based browser (`chromium --app=file://$PWD/index.html`
