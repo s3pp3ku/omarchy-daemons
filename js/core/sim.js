@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — deterministic simulation.
+/* Omarchy Daemons — deterministic simulation.
    Integer pixel physics at a fixed tick rate. No randomness, no DOM.
    The same file runs in the browser and in node (tools/verify.js), so a
    recorded list of actions always replays to the same result. */
@@ -16,7 +16,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     STEP_DOWN: 3,        // ...and step down this many before they start falling
     FALL_SPEED: 3,       // px per tick
     SPLAT: 96,           // a fall longer than this is fatal
-    OPEN_DELAY: 30,      // ticks before the first lemming drops from a hatch
+    OPEN_DELAY: 30,      // ticks before the first daemon drops from a hatch
     BUILD_PERIOD: 8,     // ticks per brick
     BRICKS: 12,
     BRICK_W: 8,          // brick length (px)
@@ -29,6 +29,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     BASH_REACH: 5,       // px removed ahead per stroke
     BASH_ADVANCE: 2,     // px moved per stroke
     BASH_LOOK: 10,       // basher keeps going while terrain is within this distance
+    BASH_SEEK: 400,      // a basher with nothing to bash yet keeps walking this many ticks, looking for a wall
     MINE_PERIOD: 9,
     MINE_ADVANCE: 2,     // miner moves 2 across, 2 down per stroke (45°)
     BLOCK_RX: 6,         // blocker turns walkers within this horizontal range
@@ -62,7 +63,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
   }
   OL.spawnInterval = spawnInterval;
 
-  class Lemming {
+  class Daemon {
     constructor(id, x, y, dir) {
       this.id = id;
       this.x = x; this.y = y;      // (x, y) = the foot pixel; ground is at y+1
@@ -74,6 +75,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.fuse = -1;              // >=0 while a bomb is ticking
       this.cause = "";             // death cause
       this.saved = false;
+      this.bashed = false;         // a basher has cut something (so it stops when the wall is through)
+      this.seek = false;           // a basher is still walking toward its wall
     }
   }
 
@@ -89,7 +92,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       this.spawned = 0;
       this.saved = 0;
       this.dead = 0;
-      this.total = level.lemmings;
+      this.total = level.daemons;
       this.need = level.save;
       this.timeLimit = (level.time || 300) * C.TPS;
       this.rateMin = level.rate || 50;
@@ -213,6 +216,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       else {
         const st = { blocker: ST.BLOCK, builder: ST.BUILD, basher: ST.BASH, miner: ST.MINE, digger: ST.DIG }[skill];
         this.setState(l, st);
+        l.bashed = false; l.seek = false;
         if (st === ST.BUILD) { l.bricks = C.BRICKS; l.t = C.BUILD_PERIOD - 3; }
       }
       this.emit("assign", l.x, l.y - 8, { skill, id });
@@ -262,16 +266,16 @@ var OL = globalThis.OL || (globalThis.OL = {});
       if (--this.spawnTimer > 0) return;
       const e = this.entrances[this.spawnIdx % this.entrances.length];
       this.spawnIdx++;
-      const l = new Lemming(this.nextId++, e.x, e.y, e.dir);
+      const l = new Daemon(this.nextId++, e.x, e.y, e.dir);
       this.lems.push(l);
       this.spawned++;
       this.spawnTimer = spawnInterval(this.rate);
       this.emit("spawn", e.x, e.y);
     }
 
-    /* debug tooling: drop an extra lemming anywhere (not part of replays) */
+    /* debug tooling: drop an extra daemon anywhere (not part of replays) */
     debugSpawn(x, y, dir) {
-      const l = new Lemming(this.nextId++, x | 0, y | 0, dir || 1);
+      const l = new Daemon(this.nextId++, x | 0, y | 0, dir || 1);
       l.debug = true;
       this.lems.push(l);
       this.total++; this.spawned++;
@@ -385,7 +389,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
     doWalk(l, blockers) {
       if (this.blockedBy(l, blockers)) l.dir = -l.dir;
-      this.walkStep(l);
+      /* ice is slippery: a daemon standing on it covers two pixels per tick */
+      const fast = this.terrain.get(l.x, l.y + 1) === M.ICE;
+      if (this.walkStep(l) && fast && l.state === ST.WALK && !this.blockedBy(l, blockers)) this.walkStep(l);
     }
 
     doBuild(l, blockers) {
@@ -436,18 +442,38 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
     doBash(l, blockers) {
       const t = this.terrain, d = l.dir;
+      l.seek = false;
       if (this.blockedBy(l, blockers)) { l.dir = -d; this.setState(l, ST.WALK); return; }
-      if (l.t % C.BASH_PERIOD !== 0) return;
-      /* anything left to bash within reach? (checked at body height) */
+      /* anything to bash within reach? (checked at body height) */
       const look = [];
       for (let c = 1; c <= C.BASH_LOOK; c++)
         for (let y = l.y - C.LEM_H + 3; y <= l.y - 2; y++) look.push(l.x + d * c, y);
-      if (!t.anyRemovable(look, d) && l.t > C.BASH_PERIOD) { this.setState(l, ST.WALK); return; }
+      let ahead = t.anyRemovable(look, d);
+      if (ahead && !l.bashed) {
+        /* builder bricks are not a wall: a basher on its way walks up a staircase rather than demolishing it */
+        ahead = false;
+        for (let i = 0; i < look.length; i += 2) {
+          const m = t.get(look[i], look[i + 1]);
+          if (m !== M.BRICK && Terrain.removable(m, d)) { ahead = true; break; }
+        }
+      }
+      if (!ahead) {
+        /* Nothing within reach. One that has cut through finishes at its next stroke. One that has not cut anything yet
+           keeps walking to its wall, so a basher can be picked long before it gets there. */
+        if (l.bashed) { if (l.t % C.BASH_PERIOD === 0) this.setState(l, ST.WALK); return; }
+        if (l.t <= C.BASH_PERIOD) return;
+        if (l.t > C.BASH_SEEK) { this.setState(l, ST.WALK); return; }
+        l.seek = true;
+        if (!this.walkStep(l)) { l.seek = false; this.setState(l, ST.WALK); }
+        else if (l.state !== ST.BASH) l.seek = false;
+        return;
+      }
+      if (l.t % C.BASH_PERIOD !== 0) return;
       const area = this.bashArea(l);
       if (t.anyBlocking(area, d)) { this.setState(l, ST.WALK); this.emit("clink", l.x + d * 3, l.y - 6); return; }
-      if (!t.anyRemovable(look, d)) { this.setState(l, ST.WALK); return; }
       const mat = this.matOf(area, d);
       t.removePixels(area, d);
+      l.bashed = true;
       this.emit("bash", l.x + d * 4, l.y - 6, { mat, dir: d });
       for (let i = 0; i < C.BASH_ADVANCE; i++) {
         l.x += d;
@@ -515,7 +541,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     return sim;
   }
 
-  OL.Lemming = Lemming;
+  OL.Daemon = Daemon;
   OL.Sim = Sim;
   OL.runReplay = runReplay;
 })();

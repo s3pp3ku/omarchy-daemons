@@ -1,6 +1,6 @@
-/* Omarchy Lemmings — renderer.
+/* Omarchy Daemons — renderer.
    Smooth rendering: terrain and backdrop are pre-rendered at S sub-pixels
-   per world pixel, everything else (lemmings, gates, mechanisms, particles)
+   per world pixel, everything else (daemons, gates, mechanisms, particles)
    is drawn as vectors, and the zoom fits the window exactly. Owns the
    camera, particles, minimap and debug overlays. */
 "use strict";
@@ -140,6 +140,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         [M.DIRT]: ["#7b5036", "#a07650", "#5b3a28", "#8a5c3d"],
         [M.ROCK]: ["#0f4a34", "#14583f", "#b8763a", "#cdbb88", "#f0c35a"],
         [M.BRICK]: ["#0f5a3c", "#7dffd4", "#f0c35a"],
+        [M.ICE]: ["#7fc4e6", "#a8dcf2", "#e8f8ff", "#3a7fa8"],
         [M.OW_L]: ["#352950", "#9b6bff", "#c9a8ff"],
         [M.OW_R]: ["#352950", "#9b6bff", "#c9a8ff"],
       };
@@ -247,7 +248,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
         }
       }
 
-      // entrance and exit (behind lemmings)
+      if (!this.debug.materials) for (const pr of (sim.level.props || [])) S_.drawProp(ctx, pr, now);
+
+      // entrance and exit (behind daemons)
       const open = Math.max(0, Math.min(1, (sim.tick - (C.OPEN_DELAY - 16)) / 12));
       for (const e of sim.entrances) S_.drawHatch(ctx, e.x + 0.5, e.y + 1, open, Math.floor(now * 2) % 2 === 0, now);
       for (const e of sim.exits) S_.drawGate(ctx, e.x + 0.5, e.y + 1, now);
@@ -276,15 +279,15 @@ var OL = globalThis.OL || (globalThis.OL = {});
       /* sliding window platforms */
       for (const p of sim.platforms) S_.drawWindowPlatform(ctx, p, now);
 
-      /* lemmings */
+      /* daemons */
       for (const l of sim.lems) {
         if (l.state === ST.OUT) continue;
         if (l.state === ST.DIE && l.cause === "void") continue;
-        OL.LemmingArt.draw(ctx, l, sim.tick);
+        OL.DaemonArt.draw(ctx, l, sim.tick);
         if (l.fuse >= 0) this.drawCountdown(ctx, Math.ceil(l.fuse / C.TPS) || 1, l.x + 0.5, l.y - 20);
       }
 
-      /* OOM killers (in front of lemmings) */
+      /* OOM killers (in front of daemons) */
       for (const k of sim.crushers) S_.drawCrusher(ctx, k, sim.crusherPhase(k, sim.tick), now);
 
       /* assignment preview: a faint ghost of what the selected skill will do */
@@ -370,8 +373,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
       ctx.restore();
     }
 
-    /* draw a lemming pose into a small canvas (toolbar icons) */
-    drawIcon(canvas, skill) { OL.LemmingArt.icon(canvas, skill); }
+    /* draw a daemon pose into a small canvas (toolbar icons) */
+    drawIcon(canvas, skill) { OL.DaemonArt.icon(canvas, skill); }
 
     drawPaused(ctx) {
       ctx.save();
@@ -392,7 +395,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         const COL = {
           [M.DIRT]: [150, 100, 60], [M.ROCK]: [120, 120, 150], [M.METAL]: [200, 200, 220],
           [M.TECH]: [60, 220, 150], [M.BRICK]: [255, 170, 60], [M.LAVA]: [255, 60, 30],
-          [M.WATER]: [40, 160, 255], [M.OW_L]: [180, 90, 255], [M.OW_R]: [255, 90, 200],
+          [M.WATER]: [40, 160, 255], [M.OW_L]: [180, 90, 255], [M.OW_R]: [255, 90, 200], [M.ICE]: [140, 210, 245],
         };
         for (let i = 0; i < t.m.length; i++) {
           const c3 = COL[t.m[i]];

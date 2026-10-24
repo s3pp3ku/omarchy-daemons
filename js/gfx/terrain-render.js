@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — high-resolution terrain renderer.
+/* Omarchy Daemons — high-resolution terrain renderer.
 
    Physics stays on the 1-pixel material map, but the picture is rendered
    at S sub-pixels per world pixel (S = 2..4, picked from the zoom):
@@ -8,7 +8,7 @@
        and grass are finer than one world pixel;
      - fluids are drawn live by the renderer (see drawFluids), with moving
        surfaces, from runs collected here.
-   Only dirty rectangles are re-rendered while lemmings change the map. */
+   Only dirty rectangles are re-rendered while daemons change the map. */
 "use strict";
 var OL = globalThis.OL || (globalThis.OL = {});
 
@@ -44,6 +44,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     c.fibre = k("#a8946a"); c.fibreHi = k("#d3c18e"); c.fibreLo = k("#6e5f40");
     c.ow = k(mix(T.special, "#000000", 0.76)); c.ow2 = k(mix(T.special, "#000000", 0.68));
     c.owArrow = k(T.special); c.owHi = k(mix(T.special, "#ffffff", 0.45));
+    c.ice = k("#7fc4e6"); c.ice2 = k("#a8dcf2"); c.iceDeep = k("#3a7fa8"); c.iceHi = k("#e8f8ff");
     return c;
   }
 
@@ -321,6 +322,19 @@ var OL = globalThis.OL || (globalThis.OL = {});
           set(bottom && edge && dist < 0.6 ? C.pcbDark : ((fx * 2 | 0) & 7) === 3 ? C.pcbLine : C.pcb);
           return false;
         }
+        case M.ICE: {
+          /* glassy ice: cool gradient, faint fracture lines, bright crust on top */
+          const sub = depth - 1 + (fy - py);
+          if (above === M.AIR && sub < 1.2) { set(sub < 0.5 ? C.iceHi : C.ice2); return false; }
+          const n = vnoise(fx * 0.18, fy * 0.3) * 0.6 + vnoise(fx * 0.9, fy * 0.5) * 0.4;
+          let c = lerp3(C.iceDeep, C.ice, Math.min(1, n * 1.3));
+          const crack = Math.abs(vnoise(fx * 0.12 + 7, fy * 0.12) - 0.5);
+          if (crack < 0.018) c = C.ice2;
+          if (hash(fx * 2 | 0, fy * 2 | 0) > 250) c = C.iceHi;
+          if (edge && dist < 0.9) c = top ? C.iceHi : bottom ? C.iceDeep : C.ice2;
+          set(c);
+          return false;
+        }
         case M.OW_L: case M.OW_R: {
           const u = ((fx % 12) + 12) % 12, v = fy % 12;
           const uu = mat === M.OW_R ? 12 - u : u;     // chevrons point the way you may bash
@@ -456,6 +470,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
         case M.LAVA: return [255, 106, 43];
         case M.WATER: return [47, 179, 232];
         case M.OW_L: case M.OW_R: return [120, 80, 200];
+        case M.ICE: return [127, 196, 230];
       }
       return null;
     }

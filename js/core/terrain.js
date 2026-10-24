@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — terrain.
+/* Omarchy Daemons — terrain.
    Pixel-level material map. Every world pixel holds one material id.
    Runs in the browser and in node (no DOM). */
 "use strict";
@@ -18,16 +18,17 @@ var OL = globalThis.OL || (globalThis.OL = {});
     OW_L: 8,    // one-way dirt: can only be bashed/mined while moving LEFT
     OW_R: 9,    // one-way dirt: can only be bashed/mined while moving RIGHT
     PLAT: 10,   // moving "window" platform (not stored in the map; see Terrain.dyn)
+    ICE: 11,    // slippery: daemons walk twice as fast on it; breakable like dirt
   };
   const NAMES = {
     air: M.AIR, dirt: M.DIRT, rock: M.ROCK, metal: M.METAL, tech: M.TECH,
     brick: M.BRICK, lava: M.LAVA, water: M.WATER, coolant: M.WATER,
-    "oneway-left": M.OW_L, "oneway-right": M.OW_R,
+    "oneway-left": M.OW_L, "oneway-right": M.OW_R, ice: M.ICE,
   };
   const SOLID = new Uint8Array(16);
   const LETHAL = new Uint8Array(16);
   const HARD = new Uint8Array(16);      // indestructible
-  [M.DIRT, M.ROCK, M.METAL, M.TECH, M.BRICK, M.OW_L, M.OW_R, M.PLAT].forEach((m) => (SOLID[m] = 1));
+  [M.DIRT, M.ROCK, M.METAL, M.TECH, M.BRICK, M.OW_L, M.OW_R, M.PLAT, M.ICE].forEach((m) => (SOLID[m] = 1));
   [M.LAVA, M.WATER].forEach((m) => (LETHAL[m] = 1));
   [M.METAL, M.TECH, M.PLAT].forEach((m) => (HARD[m] = 1));
 
@@ -65,7 +66,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
     /* Can a tool moving in `dir` (-1, 0 for vertical, +1) remove material m? */
     static removable(m, dir) {
-      if (m === M.DIRT || m === M.ROCK || m === M.BRICK) return true;
+      if (m === M.DIRT || m === M.ROCK || m === M.BRICK || m === M.ICE) return true;
       if (m === M.OW_L) return dir <= 0;
       if (m === M.OW_R) return dir >= 0;
       return false;

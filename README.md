@@ -1,111 +1,132 @@
-# Omarchy Lemmings
+# Omarchy Daemons
 
-> **Think ahead. Save them all.** A Lemmings tribute set in the Omarchy world.
-> An unfinished, novice-led project. One fully designed sample level so far; help is welcome.
+> **Think ahead. Save them all.** A crowd-guiding puzzle game for the Omarchy desktop.
 
-Omarchy Lemmings is a small browser puzzle game in the spirit of the classic
-Lemmings games. Cute green-haired lemmings tumble out of a hatch into stark
-Omarchy architecture: near-black caverns, riveted metal with neon edges,
-circuit-panel nodes and a glowing triangle gate. Your job is to hand out a
-small budget of tools so enough of them make it home.
+Tiny green-haired daemons tumble out of a hatch into stark Omarchy architecture:
+near-black caverns, riveted metal with neon edges, circuit-board rock and a
+glowing Omarchy-logo gate. You can't steer them, only hand out a small budget
+of tools (build, bash, dig, mine, block, bomb) so enough of them make it home.
 
-![Gameplay](screenshots/gameplay.png)
+It is a single web page: no build step, no dependencies, no network access,
+and every image and sound is generated in code.
 
-## What's here (v0.3)
+![Title screen](screenshots/title.png)
+![The Arch](screenshots/the-arch.png)
+![The Last Boot](screenshots/the-last-boot.png)
 
-- **A rebuilt engine** with pixel-level terrain: digging, bashing, mining and
-  building remove or add individual pixels, as in the originals.
-- **Smooth, high-resolution graphics:** anti-aliased terrain rendered at up to
-  4× detail, vector lemmings, live fluids, and a zoom that fits any window.
-- **Deterministic physics and replays.** Every recorded solution is re-verified
-  headlessly with `node tools/verify.js`.
-- **Six classic skills:** Blocker, Builder, Basher, Miner, Digger, Bomber.
-  Materials: dirt, rock, metal, tech, one-way walls, lava and coolant.
-- **LVL 03 · DEPENDENCIES:** two hatches. Group B is sealed behind a one-way
-  door that only group A can open from outside, and opening it puts A at risk.
-  Two verified strategies; a random search found no shortcut.
-- **LVL 02 · NETWORK NODES:** a sample level with three verified routes
-  (upper bridge network, lower service tunnel, hybrid drop). It needs crowd
-  control, and a random search of 60,000 plans found no shortcut. Its design
-  record is in [`docs/levels/02-network-nodes.md`](docs/levels/02-network-nodes.md).
-- **Art and synth audio made in code.** There are no image or audio files.
-- **Omarchy flavour:** a Waybar-style top bar (campaign slots as workspaces), a
-  launcher-style level select with fuzzy search, nine theme palettes (each
-  level brings its own; override from THEMES), a `journalctl`-style event log
-  (`L`), and a fastfetch-style results screen.
-- **Hazard Lab:** a playground for the OOM-killer press and sliding-window
-  platforms (retracting bridge + lift), with a verified solution.
-- **Debug and design tools:** material view, state labels, zones and a splat
-  ruler, single-step, in-place level reload, test lemmings, replay copy and
-  playback.
-
-The other nine campaign slots are planned in
-[`omarchy_lemmings_agent_pack/AGENTS.md`](omarchy_lemmings_agent_pack/AGENTS.md)
-and appear as "not built yet" in level select. The original prototype is kept,
-playable, in [`legacy/`](legacy/).
-
-## Play
+## Install (Omarchy)
 
 ```sh
-omarchy-launch-webapp "file://$PWD/index.html"
+omarchy plugin add https://github.com/s3pp3ku/omarchy-daemons.git --enable
 ```
 
-or click the `λ` button in the Omarchy bar once the plugin is enabled.
+That puts a `λ` button on your bar that opens the game as a web app. The plugin
+installs no packages, runs no service, uses no sudo and makes no network
+requests. Update it later with `omarchy plugin update`.
+
+Prefer the menu? Add an entry to `~/.config/omarchy/extensions/omarchy-menu.jsonc`:
+
+```jsonc
+"games.daemons": {
+  "icon": "", "label": "Omarchy Daemons",
+  "action": "omarchy-launch-webapp file:///home/YOU/.config/omarchy/plugins/io.github.s3pp3ku.omarchy-daemons/index.html",
+  "description": "Guide a crowd of daemons to the Omarchy gate", "aliases": ["daemons"]
+}
+```
+
+### Remove
+
+```sh
+omarchy plugin remove io.github.s3pp3ku.omarchy-daemons
+```
+
+Your progress lives in the app's browser storage, not in the plugin folder, and
+the plugin never touches your other configuration. If you added the menu entry
+above, delete it from `omarchy-menu.jsonc` too.
+
+### Requirements
+
+Omarchy with the shell plugin system and Chromium (the default). Nothing else:
+no packages, no services, no network.
+
+### Without Omarchy
+
+Open `index.html` in any Chromium-based browser (`chromium --app=file://$PWD/index.html`
+works well). Progress is stored in the browser's local storage.
+
+## The campaign
+
+Twenty levels, **played in order**: a level unlocks when you complete the one
+before it. Every level has at least one verified solution and a design record in
+[`docs/levels/`](docs/levels/). Difficulty climbs through six tiers:
+
+| Tier | Levels | What changes |
+|---|---|---|
+| ROOKIE | 01 BOOT SEQUENCE · 02 NETWORK NODES · 03 DEPENDENCIES | bridges, tunnels, a second hatch and a one-way door |
+| USER | 04 PACKAGE CACHE · 05 FIREWALL · 06 VERTICAL WORLD | stacked layers, ports and plugs, floors you can skip by digging |
+| POWER USER | 07 THE ARCH · 08 AUR VALLEY · 09 ICE CAVERNS · 10 THE OMARCH | the stepped A-frame, an OOM press, ice that doubles your speed, the kernel |
+| SYSADMIN | 11 SYSTEMD · 12 SEGFAULT · 13 DEADLOCK · 14 RACE CONDITION | 90%+ quotas: guard pits, gate presses, break a deadlock with a bomb, cross on a bridge's beat |
+| ARCHITECT | 15 MEMORY LEAK · 16 FORK BOMB · 17 ZERO DAY · 18 KERNEL PANIC | scout a whole tower, guard a stream of 64, spend bombs |
+| ROOT | 19 ROOT ACCESS · 20 THE LAST BOOT | diagonal miner ramps, then everything at once |
+
+There is also a **Hazard Lab** (OOM press, sliding windows) for trying mechanics.
+
+## Playing
 
 | Key | Action |
 |---|---|
-| `1`–`6` / click | pick a skill, then click a lemming |
+| `1`-`6` / click | pick a skill, then click a daemon |
 | `Space` | pause (you can still assign while paused) |
 | `F` | speed 1× / 2× / 4× |
-| `+` / `−` | release rate |
-| `R` | restart |
-| `N N` | nuke |
-| arrows · screen edge · right-drag · minimap | scroll |
-| `Z` / `X` | zoom out / in |
-| `M` / `B` | sound / music |
-| `L` | journal log on / off |
-| `G` | skill preview (ghost of what a skill will do) |
-| `0` | zoom to fit |
-| `H` | help |
-| `` ` `` | debug tools |
+| `+` / `-` | release rate (you can only raise it) |
+| `R` | restart · `N N` nuke |
+| arrows / wasd · wheel or two-finger scroll · shift+wheel · screen edge · right-drag · minimap | pan |
+| `Z` / `X` · ctrl+wheel · pinch | zoom out / in |
+| `0` / `Home` | zoom to fit and recentre |
+| `G` | skill preview (a ghost of what a skill will do) |
+| `L` | journal log · `M` / `B` sound / music · `H` help |
 
-A Blocker can be given a new job (Builder, Basher, Miner or Digger). That's how
-you release a crowd you're holding back.
+Tips: a **Blocker** can be handed a new job (Builder, Basher, Miner, Digger):
+that is how you release a held crowd. A **Basher** can be picked long before
+the wall; it walks there and starts. A bridge is one-way: a crowd turned back
+by a blocker walks off its end.
 
-## Install as an Omarchy plugin
+## How it works
 
-```sh
-omarchy plugin add https://github.com/YOUR-USERNAME/omarchy-lemmings.git --enable
-```
+- **Pixel terrain.** Digging, bashing, mining and building add and remove
+  individual pixels; terrain is drawn smooth at up to 4× detail.
+- **Deterministic physics and replays.** Every recorded solution is replayed
+  headlessly by `node tools/verify.js` under exactly the browser's physics.
+- **Omarchy flavour.** A Waybar-style top bar (levels are workspaces), a
+  launcher-style level select with fuzzy search, nine theme palettes (each level
+  brings its own), a `journalctl`-style event log and a fastfetch-style results
+  screen.
 
-The plugin adds a `λ` button to the bar that opens the local game as a web app.
-It installs no packages, uses no sudo, runs no service and makes no network
-requests.
+![Results](screenshots/results.png)
 
 ## Develop
 
+Needs only Node.js for the tools.
+
 ```sh
-node tools/verify.js        # every recorded solution still wins
-node tools/solve-02.js      # scripted LVL 02 solutions (add --write to record them)
-node tools/solve-03.js      # scripted LVL 03 solutions + probes (--random N)
-node tools/solve-lab.js     # scripted Hazard Lab solution
-node tools/shortcuts-02.js  # lazy-strategy probes (add --random N for a random search)
-node tools/tolerance-02.js  # how forgiving each key decision is
+node tools/verify.js              # every recorded solution still wins
+node tools/solve.js 07            # replay level 07's scripted solutions (--write to record)
+node tools/table.js               # quota, rate, tools and results for every level
+node tools/random.js the-arch N   # random search for unintended shortcuts
+node tools/ascii.js the-arch      # ASCII view of a level
+node tools/mk/12-segfault.js      # regenerate a level (11-20 are generated; see tools/mk/lib.js)
+omarchy plugin validate .         # check the manifest
 ```
 
-- [`docs/ENGINE.md`](docs/ENGINE.md): file map, physics constants, skills,
-  replays and tools.
-- [`docs/LEVEL_FORMAT.md`](docs/LEVEL_FORMAT.md): how to write a level and the
-  workflow for proving it.
+- [`docs/ENGINE.md`](docs/ENGINE.md): file map, physics constants, skills, tools.
+- [`docs/LEVEL_FORMAT.md`](docs/LEVEL_FORMAT.md): how to write a level and prove it.
+- [`docs/DESIGN_BRIEF.md`](docs/DESIGN_BRIEF.md): the design pillars behind the campaign.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): how to help.
 
-## Help wanted
+## License
 
-Level design, sprite animation, music, Quickshell packaging, accessibility,
-and testing on different screen sizes. Please explain changes gently and
-include reproduction steps for bugs.
-
-## License and scope
-
-MIT. This is an unofficial tribute and is not affiliated with the owners of
-the Lemmings name or the original game. All visuals and audio are generated
-procedurally by this code; no original assets are used.
+MIT, see [LICENSE](LICENSE). This is an independent fan project for the Omarchy
+community and is not affiliated with or endorsed by Omarchy's authors. The name
+Omarchy and the Omarchy logo belong to their owners; the logo is used here to
+theme an Omarchy plugin. All other visuals and audio are generated by this
+project's code; no third-party game assets are used.

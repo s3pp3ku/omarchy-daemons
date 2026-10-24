@@ -49,7 +49,7 @@ OL.registerSolutions("dependencies", {
    }
   ],
   "notes": [
-   "B: the first B lemming bridges the pit at once",
+   "B: the first B daemon bridges the pit at once",
    "B: the next one holds the rest of B",
    "A: first flight of steps toward the dais",
    "A: second flight, onto the dais",

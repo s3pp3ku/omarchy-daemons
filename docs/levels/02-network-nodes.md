@@ -8,7 +8,7 @@ Map Size: 1280 × 320 world px (about 4 screens wide at 3× zoom)
 Expected Solve Time: 2–4 min first time; recorded solutions finish in about 2:00
 
 ## Population
-Lemmings: 25
+Daemons: 25
 Required Save Count: 20 (80%)
 Entrances: 1 (upper left, x64)
 Exits: 1 (kernel room, lower right, x1180)
@@ -30,7 +30,7 @@ Engine note: a blocker can be handed a Builder, Basher, Miner or Digger. That re
 ## Puzzle Structure
 Puzzle sentence: **Containment → Fork → Vertical separation → (Gap ×4 | Hazard corridor + Wall ×2) → Release**
 
-Opening containment problem: The crowd walks straight off a 132 px cliff (fatal at 96). The release rate is fast enough that a builder can't finish before the next lemmings climb its unfinished stairs and fall. One lemming must hold the rest while another scouts ahead.
+Opening containment problem: The crowd walks straight off a 132 px cliff (fatal at 96). The release rate is fast enough that a builder can't finish before the next daemons climb its unfinished stairs and fall. One daemon must hold the rest while another scouts ahead.
 
 Obstacle / Decision 1, the fork at the cliff: bridge across to the backbone (upper), or dig into the boot ledge and tunnel out of the cliff face (lower).
 Obstacle / Decision 2, vertical separation:
@@ -97,7 +97,7 @@ Tolerances (`node tools/tolerance-02.js`), so it's about planning, not pixel pre
 Notes: Release rate 65 and quota 20 were tuned so containment is required. At rate 40 or quota 18, the "no blocker, upper" sacrifice play passed.
 
 ## What we learned (before scaling to ten levels)
-1. **Containment comes from the release rate, not from the map.** A builder needs 4.8 s; if lemmings arrive every 1.3 s, followers always overtake it. That makes one blocker plus one scout the core rhythm. Tune `rate` and `save` together and run the no-blocker probe every time.
+1. **Containment comes from the release rate, not from the map.** A builder needs 4.8 s; if daemons arrive every 1.3 s, followers always overtake it. That makes one blocker plus one scout the core rhythm. Tune `rate` and `save` together and run the no-blocker probe every time.
 2. **Split falls are the best cheap mechanic.** "Dig partway, then bash out" turns a lethal drop into two safe ones, and players can see the idea. It created the lower route, the hybrid route and two good failure modes for free.
 3. **Releasing a blocker by re-assigning it** creates real decisions about which spare skill to spend, and where the blocker stood starts to matter. Keep it.
 4. **Bridge gaps need about 30 px less than the builder's reach** to give about 1 s of slack. The first draft had about 6 px and felt pixel-precise.

@@ -1,8 +1,8 @@
 /* Rule-based solution scripting -> exact replay action lists.
    A plan is a list of steps run in order. Each step waits until some
-   lemming matches `when`, then assigns `skill` to it.
+   daemon matches `when`, then assigns `skill` to it.
      { skill:"builder", who: 1, when: (l, sim) => l.x >= 208 && l.state==="walk" }
-   `who` may be a lemming id, or omitted to take the first lemming that matches. */
+   `who` may be a daemon id, or omitted to take the first daemon that matches. */
 "use strict";
 function runPlan(OL, level, plan, opts) {
   opts = opts || {};

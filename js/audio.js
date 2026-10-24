@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — procedural audio.
+/* Omarchy Daemons — procedural audio.
    Original dark/minimal synth loop + small synthesised effects.
    No audio files. The context starts on the first user gesture. */
 "use strict";

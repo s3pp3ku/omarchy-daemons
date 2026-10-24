@@ -10,11 +10,11 @@ OL.registerLevel({
   slot: 90,
   lab: true,
   title: "HAZARD LAB",
-  theme: "tokyo-night",
+  theme: "matte-black",
   brief: "A test bench for new kernel features: an OOM killer on a timer, a retracting window bridge over lava and a window lift. Get half of them home.",
   size: [960, 260],
   seed: 11,
-  lemmings: 20,
+  daemons: 20,
   save: 12,
   time: 300,
   rate: 50,
@@ -30,6 +30,14 @@ OL.registerLevel({
     { type: "window", x: 420, y: 150, w: 80, h: 3, axis: "x", range: 72, step: 2, dwell: [150, 70], phase: 0 },
     // lift: rests just below the ledge, rises to the exit ledge
     { type: "window", x: 700, y: 169, w: 60, h: 6, axis: "y", range: 79, step: 2, dwell: [70, 40], phase: 0 },
+  ],
+
+  props: [
+    { kind: "plaque", x: 160, y: 56, text: "OOM KILLER", color: "#ff3b4e" },
+    { kind: "window", x: 236, y: 44, w: 120, h: 52, title: "~ dmesg -w", active: 1, lines: ["!oom-kill: pid 418", "!out of memory", "# window: sliding", "# lift: workspace 2"] },
+    { kind: "fetch", x: 520, y: 44, w: 116, h: 46 },
+    { kind: "bar", x: 700, y: 50, w: 200 },
+    { kind: "plaque", x: 460, y: 122, text: "LAVA", color: "#ff6a2b" },
   ],
 
   decor: [
@@ -63,6 +71,6 @@ OL.registerLevel({
     { m: "rock", rect: [760, 90, 200, 160] },
     { m: "tech", rect: [760, 90, 200, 4] },
     /* ceiling */
-    { m: "rock", poly: [[0, 0], [960, 0], [960, 20], [820, 34], [700, 16], [560, 36], [420, 14], [300, 30], [230, 12], [0, 18]] },
+    { m: "rock", poly: [[0, 0], [960, 0], [960, 20], [888, 20], [888, 32], [760, 32], [760, 16], [632, 16], [632, 36], [488, 36], [488, 16], [360, 16], [360, 32], [264, 32], [264, 12], [116, 12], [116, 16], [0, 16]] },
   ],
 });

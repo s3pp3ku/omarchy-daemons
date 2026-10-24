@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — scenery, drawn as smooth vectors in world space:
+/* Omarchy Daemons — scenery, drawn as smooth vectors in world space:
    the prompt mark, the entrance window, the exit portal, mechanisms and
    the parallax backdrop (rendered once at S× resolution). */
 "use strict";
@@ -14,20 +14,21 @@ var OL = globalThis.OL || (globalThis.OL = {});
   }
 
   /* ---------------------------------------------------------------- mark
-     Original "prompt mark": a neon triangle with a blinking cursor inside.
-     Swap this one function to rebrand. (cx, top) apex, h height. */
+     The Omarchy icon (OL.Brand.ICON, a 27x26 bitmap), drawn in the theme
+     accent. (cx, top) = top-centre, h = height. cursorOn brightens it so
+     the exit gate pulses. */
+  let iconPath = null;
   function drawMark(ctx, cx, top, h, cursorOn, glow) {
-    const T = OL.T, w = h * 0.62;
+    const T = OL.T, rows = OL.Brand.ICON, n = rows.length, w = rows[0].length, u = h / n;
+    if (!iconPath) {
+      iconPath = new Path2D();
+      rows.forEach((row, y) => { for (const m of row.matchAll(/#+/g)) iconPath.rect(m.index, y, m[0].length, 1); });
+    }
     ctx.save();
+    ctx.translate(cx - (w * u) / 2, top); ctx.scale(u, u);
     if (glow) { ctx.shadowColor = T.accent; ctx.shadowBlur = h * 0.6; }
-    ctx.lineJoin = "round";
-    ctx.fillStyle = A(T.accentDeep, 0.95);
-    ctx.strokeStyle = T.accent;
-    ctx.lineWidth = Math.max(0.6, h * 0.09);
-    ctx.beginPath(); ctx.moveTo(cx, top); ctx.lineTo(cx + w, top + h); ctx.lineTo(cx - w, top + h); ctx.closePath();
-    ctx.fill(); ctx.stroke();
-    ctx.shadowBlur = 0;
-    if (cursorOn) { ctx.fillStyle = T.accentHot; ctx.fillRect(cx - h * 0.17, top + h * 0.68, h * 0.34, h * 0.09); }
+    ctx.fillStyle = cursorOn ? T.accentHot : T.accent;
+    ctx.fill(iconPath);
     ctx.restore();
   }
 
@@ -78,26 +79,99 @@ var OL = globalThis.OL || (globalThis.OL = {});
   }
 
   /* ---------------------------------------------------------------- exit
-     A tall window-portal crowned by the mark. (x, y) = floor point. */
+     The gate IS the Omarchy mark: a glowing portal behind the maze frame,
+     with the mark's own gap at the bottom as the doorway. (x, y) = floor. */
   function drawGate(ctx, x, y, time) {
-    const T = OL.T, w = 30, h = 34, x0 = x - w / 2, y0 = y - h + 0.5;
-    drawMark(ctx, x, y0 - 15, 13, Math.floor(time * 2) % 2 === 0, true);
-    tileWin(ctx, x0, y0, w, h, Math.floor(time) % 3, time);
+    const T = OL.T, rows = OL.Brand.ICON, n = rows.length;
+    const size = 40, u = size / n, x0 = x - size / 2, y0 = y + 0.5 - size;
     const pulse = 0.65 + 0.2 * Math.sin(time * 3);
-    const g = ctx.createLinearGradient(0, y0 + 6, 0, y);
-    g.addColorStop(0, A(T.accent2, 0.25 * pulse)); g.addColorStop(0.55, A(T.accent, 0.7 * pulse)); g.addColorStop(1, A(T.accentHot, 0.95 * pulse));
-    ctx.fillStyle = g; ctx.fillRect(x0 + 0.6, y0 + 6, w - 1.2, h - 6.6);
+    ctx.save();
+    // portal light filling the whole square, brightest at the doorway
+    const g = ctx.createLinearGradient(0, y0, 0, y);
+    g.addColorStop(0, A(T.accent2, 0.22 * pulse)); g.addColorStop(0.55, A(T.accent, 0.6 * pulse)); g.addColorStop(1, A(T.accentHot, 0.95 * pulse));
+    ctx.fillStyle = A(T.void, 0.9); ctx.fillRect(x0, y0, size, size);
+    ctx.fillStyle = g; ctx.fillRect(x0 + u, y0 + u, size - 2 * u, size - 2 * u);
     // scanlines + rising motes
     ctx.fillStyle = "rgba(0,0,0,0.16)";
-    for (let yy = y0 + 6 + ((time * 6) % 2); yy < y; yy += 2) ctx.fillRect(x0 + 0.6, yy, w - 1.2, 0.5);
-    for (let i = 0; i < 9; i++) {
+    for (let yy = y0 + u + ((time * 6) % 2); yy < y - u; yy += 2) ctx.fillRect(x0 + u, yy, size - 2 * u, 0.5);
+    for (let i = 0; i < 10; i++) {
       const ph = (time * 0.5 + i * 0.137) % 1;
       ctx.fillStyle = A(T.accentHot, 1 - ph);
-      ctx.beginPath(); ctx.arc(x0 + 3 + ((i * 7.3) % (w - 6)), y - 1 - ph * (h - 9), 0.45, 0, TAU); ctx.fill();
+      ctx.beginPath(); ctx.arc(x0 + 3 + ((i * 7.3) % (size - 6)), y - 1 - ph * (size - 8), 0.5, 0, TAU); ctx.fill();
     }
-    ctx.font = "5px ui-monospace, monospace"; ctx.textBaseline = "top";
-    ctx.fillStyle = T.accentHot; ctx.fillText(">_", x0 + 2.5, y0 + 0.6);
-    ctx.fillStyle = T.accentHot; ctx.fillRect(x0 + 1, y - 0.6, w - 2, 0.6);
+    ctx.restore();
+    // the maze frame on top, pulsing
+    drawMark(ctx, x, y0, size, Math.floor(time * 2) % 2 === 0, true);
+    // light spilling out of the doorway
+    const dx = x0 + 8.5 * u, d = ctx.createLinearGradient(0, y, 0, y + 6);
+    d.addColorStop(0, A(T.accentHot, 0.7 * pulse)); d.addColorStop(1, A(T.accentHot, 0));
+    ctx.fillStyle = d; ctx.fillRect(dx - u * 0.5, y, u, 6);
+  }
+
+  /* ------------------------------------------------------------ props
+     Level scenery from the Omarchy desktop, drawn behind the terrain:
+       window  { x,y,w,h, title, lines:[...], active }  tiled terminal
+       fetch   { x,y,w,h }                               mini fastfetch
+       bar     { x,y,w }                                 waybar strip
+       plaque  { x,y, text }                             keybind keycap
+       logo    { x,y,h, alpha }                          the mark, faint */
+  const MONO = "ui-monospace, monospace";
+  function drawProp(ctx, p, time) {
+    const T = OL.T;
+    ctx.save();
+    ctx.globalAlpha = p.alpha !== undefined ? p.alpha : 0.62;
+    ctx.textBaseline = "top";
+    if (p.kind === "window") {
+      tileWin(ctx, p.x, p.y, p.w, p.h, p.active === undefined ? 0 : p.active, time);
+      ctx.font = `3.6px ${MONO}`;
+      ctx.fillStyle = T.dim; ctx.fillText(p.title || "", p.x + 3, p.y + 1.1);
+      const lines = p.lines || [];
+      lines.forEach((ln, i) => {
+        const y = p.y + 8 + i * 5;
+        if (y > p.y + p.h - 4.5) return;
+        const cmd = ln[0] === "$";
+        ctx.fillStyle = cmd ? T.accent : ln[0] === "!" ? T.warn : ln[0] === "#" ? T.accent2 : T.text;
+        ctx.fillText(ln, p.x + 3, y);
+      });
+      if (p.cursor !== false && Math.floor(time * 2) % 2 === 0) {
+        const y = p.y + 8 + lines.length * 5;
+        if (y < p.y + p.h - 4.5) { ctx.fillStyle = T.accentHot; ctx.fillRect(p.x + 3, y, 2, 3.4); }
+      }
+    } else if (p.kind === "fetch") {
+      tileWin(ctx, p.x, p.y, p.w, p.h, 1, time);
+      ctx.font = `3.6px ${MONO}`; ctx.fillStyle = T.dim; ctx.fillText("fastfetch", p.x + 3, p.y + 1.1);
+      const ih = Math.min(p.h - 12, 22);
+      drawMark(ctx, p.x + 4 + ih / 2, p.y + 8, ih, false, false);
+      const kv = [["", "daemon@omarchy"], ["OS", "Omarchy"], ["WM", "Hyprland"], ["Shell", "zsh"], ["Theme", T.label || "Omarchy"]];
+      kv.forEach(([k, v], i) => {
+        const y = p.y + 8 + i * 4.6, x = p.x + ih + 9;
+        if (y > p.y + p.h - 4) return;
+        ctx.fillStyle = T.accent; ctx.fillText(k ? k + ":" : "", x, y);
+        ctx.fillStyle = T.text; ctx.fillText(v, x + (k ? k.length * 2.2 + 2.5 : 0), y);
+      });
+    } else if (p.kind === "bar") {
+      const h = 7;
+      ctx.fillStyle = A(T.void, 0.94);
+      ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, h, 1.5); ctx.fill();
+      ctx.strokeStyle = T.accentDim; ctx.lineWidth = 0.35; ctx.stroke();
+      drawMark(ctx, p.x + 6, p.y + 1.6, 3.8, false, false);
+      const act = Math.floor(time / 2) % 5;
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = i === act ? T.accent : T.line2;
+        ctx.beginPath(); ctx.roundRect(p.x + 12 + i * 5, p.y + 2, 3.6, 3, 0.8); ctx.fill();
+      }
+      ctx.font = `3.4px ${MONO}`; ctx.fillStyle = T.text; ctx.fillText("12:00", p.x + p.w / 2 - 5, p.y + 2);
+      ctx.fillStyle = T.accent2; ctx.fillText("79%", p.x + p.w - 16, p.y + 2);
+    } else if (p.kind === "plaque") {
+      ctx.font = `bold 4px ${MONO}`;
+      const w = ctx.measureText(p.text).width + 5, x = p.x - (p.center === false ? 0 : w / 2);
+      ctx.fillStyle = A(T.void, 0.9); ctx.beginPath(); ctx.roundRect(x, p.y, w, 7, 1.2); ctx.fill();
+      ctx.strokeStyle = p.color || T.accent; ctx.lineWidth = 0.45; ctx.beginPath(); ctx.roundRect(x, p.y, w, 7, 1.2); ctx.stroke();
+      ctx.fillStyle = p.color || T.accentHot; ctx.fillText(p.text, x + 2.5, p.y + 1.6);
+    } else if (p.kind === "logo") {
+      drawMark(ctx, p.x, p.y, p.h, false, true);
+    }
+    ctx.restore();
   }
 
   /* ------------------------------------------------------- mechanisms */
@@ -182,18 +256,16 @@ var OL = globalThis.OL || (globalThis.OL = {});
     sky.strokeStyle = T.accent; sky.lineWidth = 0.7; sky.beginPath(); sky.arc(mx, my, mr, 0, TAU); sky.stroke();
     sky.restore();
 
-    // far: smooth mountains + the big triangle peak
+    // far: smooth mountains
     const far = mk(0.15), fw = layers[1].w, base = H * 0.62;
     far.fillStyle = T.land;
     far.beginPath(); far.moveTo(0, H);
     for (let x = 0; x <= fw; x += 3) far.lineTo(x, base - 24 * Math.abs(Math.sin(x / 61 + seed)) - 12 * Math.abs(Math.sin(x / 23)));
     far.lineTo(fw, H); far.closePath(); far.fill();
-    const px = fw * 0.38, ph = H * 0.42;
-    far.fillStyle = OL.mix(T.land, T.accent, 0.04);
-    far.beginPath(); far.moveTo(px, base - ph); far.lineTo(px + ph * 0.62, base); far.lineTo(px - ph * 0.62, base); far.closePath(); far.fill();
-    far.save(); far.shadowColor = T.accent; far.shadowBlur = 5;
-    far.strokeStyle = A(T.accentDim, 0.9); far.lineWidth = 0.6;
-    far.beginPath(); far.moveTo(px - ph * 0.62, base); far.lineTo(px, base - ph); far.lineTo(px + ph * 0.62, base); far.stroke();
+    // a monument: the Omarchy icon, huge and faint, behind the skyline
+    const px = fw * 0.38, ph = H * 0.5;
+    far.save(); far.globalAlpha = 0.16;
+    drawMark(far, px, base - ph * 0.85, ph, false, true);
     far.restore();
 
     // mid: city towers with lit windows
@@ -225,5 +297,5 @@ var OL = globalThis.OL || (globalThis.OL = {});
     return { layers, S };
   }
 
-  OL.Scenery = { drawMark, drawHatch, drawGate, drawWindowPlatform, drawCrusher, buildBackdrop, tileWin };
+  OL.Scenery = { drawProp, drawMark, drawHatch, drawGate, drawWindowPlatform, drawCrusher, buildBackdrop, tileWin };
 })();

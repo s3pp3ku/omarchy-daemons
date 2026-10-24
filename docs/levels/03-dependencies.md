@@ -8,7 +8,7 @@ Map Size: 1280 × 320
 Expected Solve Time: 3–5 min first time; recorded solutions finish in about 2:40
 
 ## Population
-Lemmings: 30 (two hatches, alternating: 15 group A, 15 group B)
+Daemons: 30 (two hatches, alternating: 15 group A, 15 group B)
 Required Save Count: 24 (80%)
 Entrances: A on the upper deck (x70); B inside `/var/cache` (x96)
 Exits: 1 (install room, on a 28 px platform)
@@ -34,18 +34,18 @@ Obstacle / Decision 2, the door: purple chevrons, which can only be bashed while
 Obstacle / Decision 3, the platform: 28 px high, so two flights of steps.
 
 Late-level consequence of an early decision:
-- Bridges are one-way. Lemmings walking back along the floor pass under the stairs' high end and fall into the pit. Opening the door therefore lets A walk straight into B's pit, and releasing B before the door is open sends B back into its own pit.
-- If the platform steps are finished early, every A lemming climbs them and leaves, and nobody is left to open the door. A has to be sequenced: hold one back, or open the door first.
+- Bridges are one-way. Daemons walking back along the floor pass under the stairs' high end and fall into the pit. Opening the door therefore lets A walk straight into B's pit, and releasing B before the door is open sends B back into its own pit.
+- If the platform steps are finished early, every A daemon climbs them and leaves, and nobody is left to open the door. A has to be sequenced: hold one back, or open the door first.
 
 Final approach: everyone walks right along the corridor and climbs A's steps into the install room.
 
 ## Primary Solution ("B-bridges-first")
-Steps: the first B lemming bridges the pit at once, and the next B lemming blocks behind it. A builds two flights at the platform (start between x940 and x980). The first A lemming walking left at the door bashes it open. The B blocker is released with a basher (nothing to bash, so he walks).
+Steps: the first B daemon bridges the pit at once, and the next B daemon blocks behind it. A builds two flights at the platform (start between x940 and x980). The first A daemon walking left at the door bashes it open. The B blocker is released with a basher (nothing to bash, so he walks).
 Skills consumed: Blocker 1, Builder 3, Basher 2
 Expected saved: 28/30 (verified). The losses are the B bridge-builder and the A door-opener, both walking back under a bridge.
 
 ## Alternate Solution ("hold-at-the-lip")
-Steps: the first B lemming blocks right at the pit's lip. A builds the platform steps and opens the door. Then the blocker itself becomes the bridge-builder, which releases B and lets them cross in one move.
+Steps: the first B daemon blocks right at the pit's lip. A builds the platform steps and opens the door. Then the blocker itself becomes the bridge-builder, which releases B and lets them cross in one move.
 Skills consumed: Blocker 1, Builder 3, Basher 1
 Expected saved: 27/30 (verified). One basher cheaper, but the release has to wait until the door is open.
 

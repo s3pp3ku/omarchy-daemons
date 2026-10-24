@@ -1,17 +1,19 @@
 {
   "schemaVersion": 1,
-  "id": "io.github.s3pp3ku.omarchy-lemmings",
-  "name": "Omarchy Lemmings",
-  "version": "0.3.0",
+  "id": "io.github.s3pp3ku.omarchy-daemons",
+  "name": "Omarchy Daemons",
+  "version": "1.0.0",
   "author": "s3pp3ku",
   "license": "MIT",
-  "description": "A small, procedural Lemmings tribute launched from the Omarchy bar.",
-  "kinds": ["bar-widget"],
+  "description": "Omarchy Daemons: a twenty-level crowd-guiding puzzle game. Opens as a web app from a bar button; no network, no sudo.",
+  "kinds": [
+    "bar-widget"
+  ],
   "entryPoints": {
-    "barWidget": "Lemmings.qml"
+    "barWidget": "Daemons.qml"
   },
   "barWidget": {
-    "displayName": "Lemmings",
+    "displayName": "Daemons",
     "category": "Games",
     "allowMultiple": false,
     "defaultSection": "right"

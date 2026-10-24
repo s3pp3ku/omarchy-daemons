@@ -50,7 +50,7 @@ const lazy = {
 };
 for (const [n, p] of Object.entries(lazy)) report(n, runPlan(OL, lv, p));
 
-/* random search: up to N tick-based actions on random lemmings */
+/* random search: up to N tick-based actions on random daemons */
 if (process.argv.includes("--random")) {
   const N = +process.argv[process.argv.indexOf("--random") + 1] || 2000;
   const skills = Object.keys(lv.skills);

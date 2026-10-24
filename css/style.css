@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — near-black, neon green/cyan linework, terminal panels. */
+/* Omarchy Daemons — near-black, neon green/cyan linework, terminal panels. */
 :root {
   --void: #030507;
   --bg: #070b0d;
@@ -35,6 +35,7 @@ button { font: inherit; color: inherit; }
 .ws { min-width: 20px; padding: 1px 5px; text-align: center; color: var(--dim); border-bottom: 2px solid transparent; }
 .ws.done { color: var(--neon); }
 .ws.empty { color: var(--line2); }
+.ws.locked { color: var(--line2); text-decoration: line-through; opacity: .6; }
 .ws.active { color: var(--void); background: var(--neon); border-bottom-color: var(--neon-hot); font-weight: 700; }
 .ws.lab { margin-left: 6px; }
 .wb-center { letter-spacing: .08em; color: var(--text); display: flex; align-items: center; gap: 10px; }
@@ -136,9 +137,10 @@ button { font: inherit; color: inherit; }
 .hint kbd { color: var(--neon); border: 1px solid var(--line2); padding: 0 5px; font: inherit; }
 
 .title { text-align: center; }
-.title .logo { font-size: 64px; font-weight: 800; letter-spacing: .06em; color: var(--neon); line-height: 1; text-shadow: 0 0 22px rgba(46,229,157,.35); }
+.title .logo { display: block; margin: 0 auto 14px; color: var(--neon); filter: drop-shadow(0 0 14px color-mix(in srgb, var(--neon) 45%, transparent)); }
+.title .wordmark { font-size: 40px; font-weight: 800; letter-spacing: .5em; margin-left: .5em; color: var(--neon); line-height: 1; }
 .title .logo .tri { border-bottom-color: var(--neon); }
-.title .sub { font-size: 28px; letter-spacing: .62em; margin: 10px 0 14px .6em; color: var(--text); }
+.title .sub { font-size: 20px; letter-spacing: .62em; margin: 12px 0 14px .6em; color: var(--text); }
 .title .tag { letter-spacing: .32em; color: var(--cyan); font-size: 13px; margin-bottom: 26px; }
 .title .menu { align-items: center; }
 .title .menu .item { min-width: 220px; justify-content: center; }
@@ -191,8 +193,8 @@ button { font: inherit; color: inherit; }
 
 /* --------------------------------------------------- fastfetch results */
 .ff-card { min-width: 640px; }
-.ff { display: flex; gap: 26px; align-items: flex-start; }
-.ff-logo { margin: 0; color: var(--neon); font: 13px/1.25 var(--mono); text-shadow: 0 0 12px color-mix(in srgb, var(--neon) 40%, transparent); }
+.ff { display: flex; gap: 26px; align-items: center; }
+.ff-logo { flex: none; margin: 0; color: var(--neon); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--neon) 45%, transparent)); }
 .ff-logo.bad { color: var(--red); }
 .ff-info { font-size: 13px; line-height: 1.55; }
 .ff-info b { color: var(--neon); font-weight: 700; }
@@ -202,4 +204,4 @@ button { font: inherit; color: inherit; }
 .ff-info .good { color: var(--neon); } .ff-info .bad { color: var(--red); }
 .ff-blocks { display: flex; margin-top: 8px; }
 .ff-blocks i { width: 22px; height: 12px; display: block; }
-.ff-msg { margin-top: 14px; }
+.ff-msg { margin-top: 22px; }

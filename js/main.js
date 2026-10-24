@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — game shell: screens, input, loop, HUD, debug panel. */
+/* Omarchy Daemons — game shell: screens, input, loop, HUD, debug panel. */
 "use strict";
 var OL = globalThis.OL || (globalThis.OL = {});
 
@@ -18,7 +18,32 @@ var OL = globalThis.OL || (globalThis.OL = {});
     { slot: 8, id: "aur-valley", title: "AUR VALLEY", theme: "matte-black" },
     { slot: 9, id: "ice-caverns", title: "ICE CAVERNS", theme: "nord" },
     { slot: 10, id: "the-omarch", title: "THE OMARCH", theme: "omarchy" },
+    { slot: 11, id: "systemd", title: "SYSTEMD", theme: "everforest" },
+    { slot: 12, id: "segfault", title: "SEGFAULT", theme: "gruvbox" },
+    { slot: 13, id: "deadlock", title: "DEADLOCK", theme: "tokyo-night" },
+    { slot: 14, id: "race-condition", title: "RACE CONDITION", theme: "catppuccin" },
+    { slot: 15, id: "memory-leak", title: "MEMORY LEAK", theme: "kanagawa" },
+    { slot: 16, id: "fork-bomb", title: "FORK BOMB", theme: "matte-black" },
+    { slot: 17, id: "zero-day", title: "ZERO DAY", theme: "rose-pine" },
+    { slot: 18, id: "kernel-panic", title: "KERNEL PANIC", theme: "nord" },
+    { slot: 19, id: "root-access", title: "ROOT ACCESS", theme: "omarchy" },
+    { slot: 20, id: "the-last-boot", title: "THE LAST BOOT", theme: "omarchy" },
   ];
+  /* Difficulty tiers: the campaign gets steadily harder (tighter quotas, scarcer tools, faster release, bigger crowds). */
+  const TIERS = [
+    { upto: 3, name: "ROOKIE" }, { upto: 6, name: "USER" }, { upto: 10, name: "POWER USER" },
+    { upto: 14, name: "SYSADMIN" }, { upto: 18, name: "ARCHITECT" }, { upto: 99, name: "ROOT" },
+  ];
+  const tierOf = (slot) => TIERS.find((t) => slot <= t.upto).name;
+  /* Levels must be completed in order. ?debug unlocks everything for testing. */
+  function isUnlocked(i) {
+    if (G.debug || i === 0) return true;
+    const prev = CAMPAIGN[i - 1], pr = progress();
+    return !!(OL.getLevel(prev.id) && pr[prev.id] && pr[prev.id].done);
+  }
+  function campaignIndex(id) { return CAMPAIGN.findIndex((c) => c.id === id); }
+  function levelLocked(id) { const i = campaignIndex(id); return i >= 0 && !isUnlocked(i); }
+
   const SPEEDS = [1, 2, 4];
   const params = new URLSearchParams(location.search);
 
@@ -95,10 +120,12 @@ var OL = globalThis.OL || (globalThis.OL = {});
   }
 
   /* -------------------------------------------------------------- level */
+  OL.startLevel = (...a) => startLevel(...a);
   function startLevel(id, opts) {
     opts = opts || {};
     const lv = OL.getLevel(id);
     if (!lv) { toast("level not found: " + id); return; }
+    if (levelLocked(id) && !opts.replay) { toast("locked: finish the previous level first"); return showSelect(); }
     G.level = lv;
     G.sim = new OL.Sim(lv, { infinite: G.infinite });
     attach(lv, G.sim);
@@ -112,7 +139,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     hideOverlay();
     updateHud(true);
     if (G.replay) toast(`▶ watching ${G.replay.name || "replay"} — input disabled`);
-    journal("ok", `Started ${lv.id}.service — ${lv.lemmings} users queued, ${lv.save} must reach /gate`);
+    journal("ok", `Started ${lv.id}.service — ${lv.daemons} users queued, ${lv.save} must reach /gate`);
   }
 
   function restart() { if (G.level) startLevel(G.level.id); }
@@ -259,8 +286,14 @@ var OL = globalThis.OL || (globalThis.OL = {});
     cv.addEventListener("wheel", (e) => {
       if (G.screen !== "play") return;
       e.preventDefault();
-      if (e.ctrlKey || e.altKey) G.r.setZoom(G.r.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12));
-      else { G.r.cam.x += (e.deltaY + e.deltaX) * 0.5 / G.r.zoom * G.r.dpr; G.r.clampCam(); }
+      if (e.ctrlKey || e.altKey) { G.r.setZoom(G.r.zoom * (e.deltaY < 0 ? 1.12 : 1 / 1.12)); return; }   // pinch / ctrl+wheel zooms
+      /* wheel and two-finger scroll pan both ways; shift turns vertical scroll sideways; when the whole height is
+         on screen there is nothing to pan vertically, so vertical scroll goes sideways as before */
+      let dx = e.deltaX, dy = e.deltaY;
+      const tallEnough = G.r.viewH() < G.sim.H - 0.5;
+      if (e.shiftKey || !tallEnough) { dx += dy; dy = 0; }
+      const k = 0.5 / G.r.zoom * G.r.dpr;
+      G.r.cam.x += dx * k; G.r.cam.y += dy * k; G.r.clampCam();
     }, { passive: false });
 
     $("#minimap").addEventListener("mousedown", (e) => {
@@ -309,14 +342,14 @@ var OL = globalThis.OL || (globalThis.OL = {});
       case "b": toast(OL.Audio.toggleMusic() ? "music on" : "music off"); break;
       case "z": G.r.setZoom(G.r.zoom / 1.2); break;
       case "x": G.r.setZoom(G.r.zoom * 1.2); break;
-      case "0": G.r.userZoom = 0; G.r.resize(); toast("zoom: fit"); break;
+      case "0": case "Home": G.r.userZoom = 0; G.r.resize(); toast("zoom: fit"); break;
       case "h": case "?": showHelp(true); break;
       case "g": G.showPreview = !G.showPreview; store.set("ol.preview", G.showPreview); toast(G.showPreview ? "skill preview on" : "skill preview off"); break;
       case "l": G.journalOn = !G.journalOn; store.set("ol.journal", G.journalOn); $("#journal").innerHTML = ""; toast(G.journalOn ? "journal on" : "journal off"); break;
       case "Escape": showPauseMenu(); break;
       case "`": case "~": toggleDebug(); break;
       case ".": if (G.paused && G.sim.status === "play") tick(); break;
-      case "t": if (G.debug && G.mouse) { G.sim.debugSpawn(G.mouse.x, G.mouse.y, 1); toast("test lemming spawned"); } break;
+      case "t": if (G.debug && G.mouse) { G.sim.debugSpawn(G.mouse.x, G.mouse.y, 1); toast("test daemon spawned"); } break;
       case "Tab": e.preventDefault(); cycleSkill(e.shiftKey ? -1 : 1); break;
     }
   }
@@ -368,7 +401,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
       el.className = "skill";
       el.dataset.id = s.id;
       el.innerHTML = `<span class="key">${s.key}</span><span class="count"></span><canvas width="${Math.round(36 * dpr)}" height="${Math.round(36 * dpr)}"></canvas><span class="name">${s.label.toUpperCase()}</span>`;
-      OL.LemmingArt.icon(el.querySelector("canvas"), s.id);
+      OL.DaemonArt.icon(el.querySelector("canvas"), s.id);
       el.onclick = () => selectSkill(s.id);
       el.title = `${s.label} (${s.key})`;
       box.appendChild(el);
@@ -397,7 +430,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
     const pr = progress();
     $("#wb-ws").innerHTML = CAMPAIGN.map((c) => {
       const built = !!OL.getLevel(c.id), cur = G.level && G.level.id === c.id, done = pr[c.id] && pr[c.id].done;
-      return `<span class="ws ${cur ? "active" : ""} ${done ? "done" : ""} ${built ? "" : "empty"}" title="${pad(c.slot)} ${c.title}">${c.slot}</span>`;
+      const locked = built && levelLocked(c.id);
+      return `<span class="ws ${cur ? "active" : ""} ${done ? "done" : ""} ${built ? "" : "empty"} ${locked ? "locked" : ""}" title="${pad(c.slot)} ${c.title}${locked ? " (locked)" : ""}">${c.slot}</span>`;
     }).join("") + (G.level && G.level.lab ? `<span class="ws active lab" title="lab">λ</span>` : "");
   }
   function updateHud(force) {
@@ -460,8 +494,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
     G.back = null;
     showOverlay(`
       <div class="title">
-        <div class="logo">OM<i class="tri"></i>RCHY</div>
-        <div class="sub">LEMMINGS</div>
+        ${OL.Brand.svg("logo", 150)}
+        <div class="wordmark">OMARCHY</div>
+        <div class="sub">DAEMONS</div>
         <div class="tag">THINK AHEAD. SAVE THEM ALL.</div>
         <div class="menu">
           <div class="item">PLAY</div>
@@ -477,8 +512,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
   function firstPlayable() {
     const pr = progress();
-    const built = CAMPAIGN.filter((c) => OL.getLevel(c.id));
-    return (built.find((c) => !(pr[c.id] && pr[c.id].done)) || built[0]).id;
+    const open = CAMPAIGN.filter((c, i) => OL.getLevel(c.id) && isUnlocked(i));
+    return (open.find((c) => !(pr[c.id] && pr[c.id].done)) || open[open.length - 1] || CAMPAIGN[0]).id;
   }
 
   /* Launcher-style list (think Walker): type to filter, ↑↓, enter. */
@@ -526,19 +561,22 @@ var OL = globalThis.OL || (globalThis.OL = {});
 
   function showSelect() {
     const pr = progress();
-    const items = CAMPAIGN.map((c) => {
-      const lv = OL.getLevel(c.id), p = pr[c.id];
+    const items = CAMPAIGN.map((c, i) => {
+      const lv = OL.getLevel(c.id), p = pr[c.id], open = lv && isUnlocked(i);
+      const prev = CAMPAIGN[i - 1];
       return {
-        icon: lv ? (p && p.done ? "✓" : "▸") : "·",
+        icon: !lv ? "·" : !open ? "🔒" : p && p.done ? "✓" : "▸",
         label: `${pad(c.slot)}  ${c.title}`,
-        sub: `${(OL.THEMES[(lv && lv.theme) || c.theme] || OL.THEMES.omarchy).label}${lv ? "" : " · not built yet"}`,
-        right: !lv ? "" : p ? `${p.done ? "complete · " : ""}best ${p.best}/${lv.lemmings}` : "ready",
-        locked: !lv, focus: lv && !(p && p.done), act: () => showBrief(c.id),
+        sub: !lv ? `${(OL.THEMES[c.theme] || OL.THEMES.omarchy).label} · not built yet`
+          : !open ? `locked · complete ${pad(prev.slot)} ${prev.title} first`
+          : `${tierOf(c.slot)} · ${(OL.THEMES[lv.theme || c.theme] || OL.THEMES.omarchy).label}`,
+        right: !open ? "" : p ? `${p.done ? "complete · " : ""}best ${p.best}/${lv.daemons}` : "ready",
+        locked: !open, focus: open && !(p && p.done), act: () => showBrief(c.id),
       };
     });
     for (const lv of OL.LEVELS.filter((l) => l.lab || (l.debug && G.debug))) {
       const p = pr[lv.id];
-      items.push({ icon: "λ", label: `--  ${lv.title}`, sub: lv.lab ? "lab · new mechanics" : "debug", right: p ? `best ${p.best}/${lv.lemmings}` : "", act: () => showBrief(lv.id) });
+      items.push({ icon: "λ", label: `--  ${lv.title}`, sub: lv.lab ? "lab · new mechanics" : "debug", right: p ? `best ${p.best}/${lv.daemons}` : "", act: () => showBrief(lv.id) });
     }
     showLauncher({ screen: "select", placeholder: "search levels…", prompt: "λ", hint: "↑↓ · enter · esc", items, back: showTitle });
   }
@@ -566,6 +604,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
   function showBrief(id) {
     const lv = OL.getLevel(id);
     if (!lv) return;
+    if (levelLocked(id)) { toast("locked: finish the previous level first"); return showSelect(); }
     setScreen("brief");
     G.back = showSelect;
     // preview the level behind the card
@@ -575,30 +614,21 @@ var OL = globalThis.OL || (globalThis.OL = {});
     updateHud(true);
     const p = progress()[lv.id];
     $("#rate-val").textContent = lv.rate;
-    showOverlay(`<h1>${lv.lab ? "LAB" : "LVL " + pad(lv.slot)} · ${OL.T.label}</h1><h2>${lv.title}</h2>
+    showOverlay(`<h1>${lv.lab ? "LAB" : "LVL " + pad(lv.slot) + " · " + tierOf(lv.slot)} · ${OL.T.label}</h1><h2>${lv.title}</h2>
       <p>${lv.brief}</p>
       <div class="kv">
-        <span>LEMMINGS</span><span>TO SAVE</span><span>TIME</span><span>RELEASE</span>
-        <b>${lv.lemmings}</b><b>${lv.save}</b><b>${fmtTime(lv.time * C.TPS)}</b><b>${lv.rate}</b>
+        <span>DAEMONS</span><span>TO SAVE</span><span>TIME</span><span>RELEASE</span>
+        <b>${lv.daemons}</b><b>${lv.save}</b><b>${fmtTime(lv.time * C.TPS)}</b><b>${lv.rate}</b>
       </div>
       <div class="chips">${skillChips(lv)}</div>
-      ${p ? `<p class="muted">best: ${p.best}/${lv.lemmings} saved${p.done ? " · complete" : ""}</p>` : ""}
+      ${p ? `<p class="muted">best: ${p.best}/${lv.daemons} saved${p.done ? " · complete" : ""}</p>` : ""}
       <div class="menu"><div class="item">START</div><div class="item">BACK</div></div>
       <div class="hint"><kbd>enter</kbd> start · <kbd>h</kbd> in game for help · <kbd>esc</kbd> back</div>`);
     actions([() => startLevel(lv.id), showSelect]);
   }
 
   /* Results in the style of fastfetch: logo left, key/value right. */
-  const ASCII = [
-    "         /\\",
-    "        /  \\",
-    "       /    \\",
-    "      /      \\",
-    "     /        \\",
-    "    /   ____   \\",
-    "   /            \\",
-    "  /______________\\",
-  ];
+  OL.showResult = showResult;
   function showResult() {
     const sim = G.sim, lv = G.level;
     const won = sim.status === "won";
@@ -618,13 +648,15 @@ var OL = globalThis.OL || (globalThis.OL = {});
     const msg = won
       ? (sim.saved === sim.total ? "Every single one. Flawless." : sim.saved - sim.need >= 3 ? "Comfortably done. Can you save more?" : "Just enough. The network holds.")
       : sim.endReason === "time" ? "Out of time." : "Not enough made it home.";
+    const ci = campaignIndex(lv.id), nx = won && ci >= 0 ? CAMPAIGN[ci + 1] : null;
+    const next = nx && OL.getLevel(nx.id) ? nx : null;
     const row = (k, v) => `<div><b>${k}</b>: ${v}</div>`;
     const T = OL.T;
     const blocks = [T.void, T.danger, T.accent, T.warn, T.accent2, T.special, T.accentHot, T.text].map((c) => `<i style="background:${c}"></i>`).join("");
     showOverlay(`<div class="ff">
-        <pre class="ff-logo ${won ? "" : "bad"}">${ASCII.join("\n")}</pre>
+        ${OL.Brand.svg("ff-logo " + (won ? "" : "bad"), 190)}
         <div class="ff-info">
-          <div class="ff-head"><span>lemmings</span>@<span>omarchy</span></div>
+          <div class="ff-head"><span>daemons</span>@<span>omarchy</span></div>
           <div class="ff-rule">${"─".repeat(22)}</div>
           ${row("Status", `<span class="${won ? "good" : "bad"}">${won ? "SYSTEM RESTORED" : "SEGFAULT"}</span>`)}
           ${row("Level", `${lv.lab ? "LAB" : pad(lv.slot)} ${lv.title}`)}
@@ -639,8 +671,8 @@ var OL = globalThis.OL || (globalThis.OL = {});
         </div>
       </div>
       <p class="muted ff-msg">${msg}</p>
-      <div class="menu"><div class="item">${won ? "PLAY AGAIN" : "RETRY"}</div><div class="item">LEVELS</div></div>`, "ff-card");
-    actions([restart, showSelect]);
+      <div class="menu">${next ? `<div class="item">NEXT LEVEL · ${pad(next.slot)} ${next.title}</div>` : ""}<div class="item">${won ? "PLAY AGAIN" : "RETRY"}</div><div class="item">LEVELS</div></div>`, "ff-card");
+    actions(next ? [() => showBrief(next.id), restart, showSelect] : [restart, showSelect]);
     renderWorkspaces();
   }
 
@@ -661,23 +693,23 @@ var OL = globalThis.OL || (globalThis.OL = {});
     setScreen("help");
     G.back = prev;
     showOverlay(`<h1>HOW TO PLAY</h1><h2>THINK AHEAD</h2>
-      <p>Lemmings walk until something stops them. Give them jobs so enough of them reach the glowing gate. Every tool is limited — spending one early changes what you can do later.</p>
+      <p>Daemons walk until something stops them. Give them jobs so enough of them reach the glowing gate. Every tool is limited — spending one early changes what you can do later.</p>
       <div class="help-grid">
-        <kbd>1–6</kbd><span>pick a skill · click a lemming to assign it</span>
+        <kbd>1–6</kbd><span>pick a skill · click a daemon to assign it</span>
         <kbd>space</kbd><span>pause (you can still assign while paused)</span>
         <kbd>f</kbd><span>speed 1× / 2× / 4×</span>
-        <kbd>+ / −</kbd><span>release rate (how fast lemmings drop in)</span>
+        <kbd>+ / −</kbd><span>release rate (how fast daemons drop in)</span>
         <kbd>r</kbd><span>restart instantly</span>
         <kbd>n n</kbd><span>nuke everyone (ends the level)</span>
-        <kbd>← →</kbd><span>scroll · or move the mouse to the screen edge · right-drag · minimap</span>
-        <kbd>z / x</kbd><span>zoom out / in</span>
+        <kbd>← → ↑ ↓</kbd><span>pan (or w a s d) · mouse wheel / two-finger scroll · shift+wheel sideways · right-drag · screen edge · minimap</span>
+        <kbd>z / x</kbd><span>zoom out / in (also ctrl+wheel or pinch)</span>
         <kbd>m / b</kbd><span>sound / music</span>
         <kbd>l</kbd><span>journal log on / off</span>
         <kbd>g</kbd><span>skill preview (ghost) on / off</span>
-        <kbd>0</kbd><span>zoom to fit</span>
+        <kbd>0</kbd><span>zoom to fit and recentre (also home)</span>
         <kbd>esc</kbd><span>menu</span>
       </div>
-      <p class="muted">BLOCKER turns others around · BUILDER lays 12 steps · BASHER tunnels sideways · MINER tunnels down at 45° · DIGGER digs straight down · BOMBER explodes after 5 s. Metal and tech plating can't be broken. Purple chevrons can only be bashed in the arrow's direction. Falls longer than six lemming-heights are fatal; lava and coolant are always fatal. The <b>OOM killer</b> press slams on a timer (its light blinks first). <b>Sliding windows</b> carry anyone standing on them.</p>
+      <p class="muted">BLOCKER turns others around · BUILDER lays 12 steps · BASHER tunnels sideways · MINER tunnels down at 45° · DIGGER digs straight down · BOMBER explodes after 5 s. Metal and tech plating can't be broken. Purple chevrons can only be bashed in the arrow's direction. Falls longer than six daemon-heights are fatal; lava and coolant are always fatal. The <b>OOM killer</b> press slams on a timer (its light blinks first). <b>Sliding windows</b> carry anyone standing on them.</p>
       <div class="menu"><div class="item">BACK</div></div>`);
     actions([prev]);
   }
@@ -696,7 +728,7 @@ var OL = globalThis.OL || (globalThis.OL = {});
     const sols = (G.level && OL.SOLUTIONS[G.level.id]) || {};
     el.innerHTML = `<h3>DEBUG · \` to close</h3>
       <label><input type="checkbox" data-k="materials"> material view</label>
-      <label><input type="checkbox" data-k="labels"> lemming id / state</label>
+      <label><input type="checkbox" data-k="labels"> daemon id / state</label>
       <label><input type="checkbox" data-k="zones"> zones · exits · splat ruler</label>
       <label><input type="checkbox" data-k="infinite"> infinite skills (restarts)</label>
       <div>

@@ -1,0 +1,6 @@
+.shots/
+.t.html
+.shot.html
+node_modules/
+*.bak
+*.log

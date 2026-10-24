@@ -12,7 +12,7 @@ OL.registerLevel({
   brief: "libb can't install until liba is built. Group B is sealed in /var/cache behind a one-way door that only opens from outside. Get group A round to it — and mind what's waiting behind that door.",
   size: [1280, 320],
   seed: 5,
-  lemmings: 30,
+  daemons: 30,
   save: 24,
   time: 300,
   rate: 50,
@@ -20,6 +20,18 @@ OL.registerLevel({
   entrances: [{ x: 70, y: 82 }, { x: 96, y: 200 }],
   exits: [{ x: 1180, y: 241 }],
   camera: { x: 0 },
+
+  /* Omarchy desktop scenery, drawn behind the terrain (see scenery.js drawProp) */
+  props: [
+    { kind: "plaque", x: 190, y: 62, text: "SUPER + RETURN" },
+    { kind: "window", x: 300, y: 44, w: 110, h: 50, title: "~ make liba", active: 0, lines: ["$ make liba", "CC src/a.c", "LD liba.so", "# built"] },
+    { kind: "plaque", x: 230, y: 166, text: "/var/cache" },
+    { kind: "window", x: 570, y: 44, w: 270, h: 96, title: "workspace 3", active: 2, lines: ["$ pacman -S libb", "!error: libb needs liba", "# waiting for liba ...", "$ ls /var/cache", "pacman  fontconfig  omarchy", "# door: one-way, from outside"] },
+    { kind: "window", x: 846, y: 44, w: 140, h: 46, title: "~ btop", active: 1, lines: ["cpu  7%", "mem  2.1G", "!oom_score 812"] },
+    { kind: "fetch", x: 846, y: 94, w: 140, h: 46 },
+    { kind: "bar", x: 992, y: 52, w: 230 },
+    { kind: "plaque", x: 1130, y: 150, text: "SUPER + ALT + SPACE", color: "#bb9af7" },
+  ],
 
   decor: [
     { m: "tech", rect: [8, 156, 286, 108] },                    // /var/cache back wall
@@ -52,6 +64,6 @@ OL.registerLevel({
     { m: "metal", rect: [1250, 0, 30, 300] },
 
     /* ceiling */
-    { m: "rock", poly: [[0, 0], [1280, 0], [1280, 22], [1160, 34], [1040, 18], [900, 40], [780, 20], [640, 38], [560, 18], [420, 30], [300, 16], [160, 28], [0, 18]] },
+    { m: "rock", poly: [[0, 0], [1280, 0], [1280, 24], [1220, 24], [1220, 32], [1100, 32], [1100, 16], [968, 16], [968, 40], [840, 40], [840, 20], [712, 20], [712, 40], [600, 40], [600, 16], [488, 16], [488, 32], [360, 32], [360, 16], [232, 16], [232, 28], [80, 28], [80, 16], [0, 16]] },
   ],
 });

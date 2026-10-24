@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — level registry.
+/* Omarchy Daemons — level registry.
    Each file in levels/ calls OL.registerLevel({...}). Level files are plain
    data: geometry, populations, skills. No gameplay code lives in them.
    See docs/LEVEL_FORMAT.md. */
@@ -10,9 +10,9 @@ var OL = globalThis.OL || (globalThis.OL = {});
   OL.SOLUTIONS = OL.SOLUTIONS || {};
 
   function validate(def) {
-    const need = ["id", "slot", "title", "size", "terrain", "entrances", "exits", "lemmings", "save", "skills"];
+    const need = ["id", "slot", "title", "size", "terrain", "entrances", "exits", "daemons", "save", "skills"];
     for (const k of need) if (def[k] === undefined) throw new Error(`level ${def.id || "?"}: missing "${k}"`);
-    if (def.save > def.lemmings) throw new Error(`level ${def.id}: save > lemmings`);
+    if (def.save > def.daemons) throw new Error(`level ${def.id}: save > daemons`);
     for (const e of def.entrances.concat(def.exits)) {
       if (e.x < 0 || e.y < 0 || e.x >= def.size[0] || e.y >= def.size[1])
         throw new Error(`level ${def.id}: entrance/exit outside map`);

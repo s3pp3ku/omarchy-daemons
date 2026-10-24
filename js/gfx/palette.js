@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — palette.
+/* Omarchy Daemons — palette.
    World: near-black, neon green/cyan linework, dark stone + metal,
    restrained orange/red hazards, purple for special mechanics. */
 "use strict";
@@ -21,7 +21,7 @@ OL.PAL = {
   text: "#d6e2dc",
   textDim: "#7c8c86",
 
-  // lemming
+  // daemon
   outline: "#0b120e",
   hair: "#3fd46c",
   hairDark: "#1f8f45",

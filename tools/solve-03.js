@@ -1,6 +1,6 @@
 /* Scripted solutions + probes for LVL 03 DEPENDENCIES.
    Run: node tools/solve-03.js [--write] [--random N]
-   Lemmings alternate hatches: odd ids are group A (deck), even ids group B (/var/cache). */
+   Daemons alternate hatches: odd ids are group A (deck), even ids group B (/var/cache). */
 "use strict";
 const { load, ROOT } = require("./load.js");
 const { runPlan, report } = require("./plan.js");
@@ -21,7 +21,7 @@ const door = { skill: "basher", when: (l) => A(l) && W(l) && l.y > 260 && l.dir 
 
 const PLANS = {
   "B-bridges-first": [
-    { who: 2, skill: "builder", when: (l) => W(l) && l.y > 260 && l.x >= 234, note: "B: the first B lemming bridges the pit at once" },
+    { who: 2, skill: "builder", when: (l) => W(l) && l.y > 260 && l.x >= 234, note: "B: the first B daemon bridges the pit at once" },
     { who: 4, skill: "blocker", when: (l) => W(l) && l.y > 260 && l.x >= 200, note: "B: the next one holds the rest of B" },
     ...dais(),
     door,

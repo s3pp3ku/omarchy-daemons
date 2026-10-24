@@ -1,4 +1,4 @@
-/* Omarchy Lemmings — circuit-board artwork for breakable "rock".
+/* Omarchy Daemons — circuit-board artwork for breakable "rock".
 
    Instead of per-pixel noise, the board is *routed* once per level, like a
    real PCB, and the terrain renderer samples it wherever there is rock:

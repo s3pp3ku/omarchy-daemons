@@ -7,7 +7,7 @@ OL.registerLevel({
   title: "PHYSICS SANDBOX",
   brief: "Every material and skill in one room. For testing, not for playing.",
   size: [900, 300],
-  lemmings: 40, save: 1, time: 600, rate: 50,
+  daemons: 40, save: 1, time: 600, rate: 50,
   skills: { blocker: 99, builder: 99, basher: 99, miner: 99, digger: 99, bomber: 99 },
   entrances: [{ x: 60, y: 120 }],
   exits: [{ x: 860, y: 249 }],

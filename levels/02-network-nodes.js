@@ -1,6 +1,6 @@
 /* LVL 02 — NETWORK NODES
    Design record: docs/levels/02-network-nodes.md
-   Coordinates are world pixels (x right, y down). Lemmings are ~16 px tall;
+   Coordinates are world pixels (x right, y down). Daemons are ~16 px tall;
    falls over 96 px are fatal; one builder = 12 steps = 48 px across, 24 up. */
 OL.registerLevel({
   id: "network-nodes",
@@ -10,7 +10,7 @@ OL.registerLevel({
   size: [1280, 320],
   seed: 7,
   theme: "omarchy",
-  lemmings: 25,
+  daemons: 25,
   save: 20,
   time: 240,
   rate: 65,
@@ -20,6 +20,17 @@ OL.registerLevel({
   camera: { x: 0 },
 
   /* scenery only: never collides, drawn faint behind the action */
+  /* Omarchy desktop scenery, drawn behind the terrain (see scenery.js drawProp) */
+  props: [
+    { kind: "plaque", x: 108, y: 70, text: "SUPER + RETURN" },
+    { kind: "window", x: 252, y: 46, w: 96, h: 48, title: "~ btop", active: 0, lines: ["$ ip link", "eth0: UP", "wlan0: DOWN", "!lo: no carrier"] },
+    { kind: "fetch", x: 354, y: 46, w: 112, h: 48 },
+    { kind: "window", x: 566, y: 40, w: 86, h: 44, title: "journalctl -f", active: 1, lines: ["# firewall.service", "# node-02 timeout", "!oom: killed pid 418"] },
+    { kind: "bar", x: 790, y: 54, w: 230 },
+    { kind: "plaque", x: 905, y: 108, text: "SUPER + W  close window", color: "#ff6a2b" },
+    { kind: "plaque", x: 1146, y: 156, text: "HOME" },
+  ],
+
   decor: [
     { m: "tech", rect: [1064, 176, 186, 62] },                 // kernel room back panel
     { m: "metal", rect: [1130, 184, 100, 6] },
@@ -72,6 +83,6 @@ OL.registerLevel({
     { m: "water", rect: [420, 247, 42, 49] },
 
     /* ceiling teeth (visual + stop tall staircases) */
-    { m: "rock", poly: [[0, 0], [1280, 0], [1280, 18], [1180, 30], [1100, 14], [980, 40], [900, 16], [820, 34], [700, 12], [600, 46], [540, 20], [460, 30], [380, 14], [300, 36], [220, 16], [140, 26], [60, 12], [0, 22]] },
+    { m: "rock", poly: [[0, 0], [1280, 0], [1280, 16], [1232, 16], [1232, 32], [1140, 32], [1140, 16], [1040, 16], [1040, 40], [940, 40], [940, 16], [860, 16], [860, 32], [760, 32], [760, 12], [648, 12], [648, 48], [568, 48], [568, 20], [500, 20], [500, 32], [420, 32], [420, 16], [340, 16], [340, 36], [260, 36], [260, 16], [180, 16], [180, 24], [100, 24], [100, 12], [32, 12], [32, 24], [0, 24]] },
   ],
 });

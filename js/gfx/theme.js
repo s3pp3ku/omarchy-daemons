@@ -1,7 +1,7 @@
-/* Omarchy Lemmings — theme palettes.
+/* Omarchy Daemons — theme palettes.
    Each level names a theme (level.theme); the player can override it from
    the THEMES launcher. A theme recolours the UI, neon linework, tech panels,
-   circuit-board steps, hatch/gate and backdrop. The lemmings, soil and
+   circuit-board steps, hatch/gate and backdrop. The daemons, soil and
    hazards keep their colours so gameplay reads the same in every theme.
 
    Palettes follow the well-known public colour schemes these themes are
